@@ -1,13 +1,13 @@
 # Continuous Integration
-# Runs typecheck and unit tests on every push to main and on pull requests to main
+# Runs typecheck and unit tests on every push to main or develop and on pull requests to them
 
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 jobs:
   check:
