@@ -4,7 +4,10 @@
   "description": "Create and grade simple multiple-choice tests",
   "main": "./dist/main/index.js",
   "type": "module",
-  "author": "Jason Ash",
+  "author": {
+    "name": "Jason Ash",
+    "email": "jason@jasonash.com"
+  },
   "license": "Apache-2.0",
   "private": true,
   "scripts": {
