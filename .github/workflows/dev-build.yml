@@ -1,0 +1,474 @@
+# Development Build Workflow
+# Builds signed and notarized app for all platforms (macOS, Windows, Linux)
+# Creates/updates a "dev-latest" pre-release with downloadable artifacts
+# Triggered manually via GitHub Actions UI
+
+name: Dev Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to build from'
+        required: true
+        default: 'main'
+        type: string
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # macOS ARM64 (Apple Silicon) - runs on macos-latest (ARM64 runner)
+  build-macos-arm64:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update version for dev build
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          DEV_VERSION="${VERSION}-dev.${{ github.run_number }}"
+          echo "Building dev version: $DEV_VERSION"
+          echo "DEV_VERSION=$DEV_VERSION" >> $GITHUB_ENV
+          npm version $DEV_VERSION --no-git-tag-version
+
+      - name: Build application
+        run: npm run build
+
+      - name: Import Code Signing Certificate
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          echo "$MACOS_CERTIFICATE" | base64 --decode > $RUNNER_TEMP/certificate.p12
+          security import $RUNNER_TEMP/certificate.p12 \
+            -P "$MACOS_CERTIFICATE_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+      - name: Package and Sign for macOS (ARM64)
+        run: npx electron-builder --mac --arm64 --publish never
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Notarize macOS App
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          for DMG in release/*.dmg; do
+            echo "Notarizing $DMG..."
+            xcrun notarytool submit "$DMG" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_ID_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" \
+              --wait
+            xcrun stapler staple "$DMG"
+          done
+
+      - name: Upload macOS ARM64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: EasyGrade-macOS-arm64-dev-${{ github.run_number }}
+          path: |
+            release/*.dmg
+            release/*.zip
+          if-no-files-found: error
+          retention-days: 30
+
+  # macOS x64 (Intel) - runs on macos-15-intel runner (free tier)
+  build-macos-x64:
+    runs-on: macos-15-intel
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update version for dev build
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          DEV_VERSION="${VERSION}-dev.${{ github.run_number }}"
+          echo "Building dev version: $DEV_VERSION"
+          echo "DEV_VERSION=$DEV_VERSION" >> $GITHUB_ENV
+          npm version $DEV_VERSION --no-git-tag-version
+
+      - name: Build application
+        run: npm run build
+
+      - name: Import Code Signing Certificate
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          echo "$MACOS_CERTIFICATE" | base64 --decode > $RUNNER_TEMP/certificate.p12
+          security import $RUNNER_TEMP/certificate.p12 \
+            -P "$MACOS_CERTIFICATE_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+      - name: Package and Sign for macOS (x64)
+        run: npx electron-builder --mac --x64 --publish never
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Notarize macOS App
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          for DMG in release/*.dmg; do
+            echo "Notarizing $DMG..."
+            xcrun notarytool submit "$DMG" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_ID_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" \
+              --wait
+            xcrun stapler staple "$DMG"
+          done
+
+      - name: Upload macOS x64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: EasyGrade-macOS-x64-dev-${{ github.run_number }}
+          path: |
+            release/*.dmg
+            release/*.zip
+          if-no-files-found: error
+          retention-days: 30
+
+  # Windows build
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update version for dev build
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          DEV_VERSION="${VERSION}-dev.${{ github.run_number }}"
+          echo "Building dev version: $DEV_VERSION"
+          echo "DEV_VERSION=$DEV_VERSION" >> $GITHUB_ENV
+          npm version $DEV_VERSION --no-git-tag-version
+
+      - name: Build application
+        run: npm run build
+
+      - name: Import Code Signing Certificate
+        shell: powershell
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if ($env:WINDOWS_CERTIFICATE) {
+            $certificateBytes = [System.Convert]::FromBase64String($env:WINDOWS_CERTIFICATE)
+            $certPath = "$env:RUNNER_TEMP\certificate.pfx"
+            [System.IO.File]::WriteAllBytes($certPath, $certificateBytes)
+            echo "WIN_CSC_LINK=$certPath" >> $env:GITHUB_ENV
+            echo "WIN_CSC_KEY_PASSWORD=$env:WINDOWS_CERTIFICATE_PASSWORD" >> $env:GITHUB_ENV
+            Write-Host "Certificate imported successfully"
+          } else {
+            Write-Host "No certificate provided, building unsigned"
+          }
+
+      - name: Package for Windows
+        run: npx electron-builder --win --publish never
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: EasyGrade-Windows-dev-${{ github.run_number }}
+          path: |
+            release/*.exe
+          if-no-files-found: error
+          retention-days: 30
+
+  # Linux build
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfuse2
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update version for dev build
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          DEV_VERSION="${VERSION}-dev.${{ github.run_number }}"
+          echo "Building dev version: $DEV_VERSION"
+          echo "DEV_VERSION=$DEV_VERSION" >> $GITHUB_ENV
+          npm version $DEV_VERSION --no-git-tag-version
+
+      - name: Build application
+        run: npm run build
+
+      - name: Package for Linux
+        run: npx electron-builder --linux --publish never
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: EasyGrade-Linux-dev-${{ github.run_number }}
+          path: |
+            release/*.AppImage
+            release/*.deb
+          if-no-files-found: error
+          retention-days: 30
+
+  # Create/update the dev-latest release with all platform builds
+  release:
+    needs: [build-macos-arm64, build-macos-x64, build-windows, build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Get version info
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          DEV_VERSION="${VERSION}-dev.${{ github.run_number }}"
+          echo "dev_version=$DEV_VERSION" >> $GITHUB_OUTPUT
+          echo "Building release for version: $DEV_VERSION"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display downloaded files
+        run: find artifacts -type f | head -50
+
+      # Delete existing dev-latest release and tag if they exist
+      - name: Delete existing dev-latest release
+        run: |
+          gh release delete dev-latest --yes || true
+          git push origin :refs/tags/dev-latest || true
+          # Wait for GitHub to propagate the tag deletion before recreating,
+          # otherwise the new release gets "untagged-*" download URLs
+          sleep 10
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create dev-latest release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: dev-latest
+          name: "Development Build (v${{ steps.version.outputs.dev_version }})"
+          draft: false
+          prerelease: true
+          files: |
+            artifacts/**/*.dmg
+            artifacts/**/*.zip
+            artifacts/**/*.exe
+            artifacts/**/*.AppImage
+            artifacts/**/*.deb
+          body: |
+            ## Development Build
+
+            **Version:** ${{ steps.version.outputs.dev_version }}
+            **Branch:** ${{ inputs.branch }}
+            **Build:** #${{ github.run_number }}
+            **Date:** ${{ github.event.repository.updated_at }}
+
+            **Note: This is a development build for testing purposes.**
+
+            ### Downloads
+
+            | Platform | File |
+            |----------|------|
+            | macOS (Apple Silicon) | `EasyGrade-*-arm64.dmg` |
+            | macOS (Intel) | `EasyGrade-*-x64.dmg` |
+            | Windows (Installer) | `EasyGrade-Setup-*.exe` |
+            | Windows (Portable) | `EasyGrade-Portable-*.exe` |
+            | Linux (AppImage) | `EasyGrade-*-x64.AppImage` |
+            | Linux (Debian) | `EasyGrade-*-x64.deb` |
+
+            ### Installation
+
+            **macOS**: Download the DMG, open it, and drag EasyGrade to your Applications folder. The app is signed and notarized.
+
+            **Windows**: Download and run the installer, or run the portable EXE directly. If the build was not code-signed you may see a SmartScreen warning. Click "More info" then "Run anyway".
+
+            **Linux (AppImage)**: Download the AppImage, make it executable (`chmod +x`), and run with: `./EasyGrade-*.AppImage --no-sandbox`
+
+            **Linux (Debian/Ubuntu)**: Install the .deb package: `sudo dpkg -i EasyGrade-*.deb`
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Update dev-releases.json for website consumption
+  update-dev-releases-json:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+          fetch-depth: 0
+
+      - name: Pull latest changes
+        run: git pull origin ${{ inputs.branch }}
+
+      - name: Generate dev-releases.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Wait for the dev-latest release to appear in the releases list (retry up to 60 seconds)
+          for i in {1..12}; do
+            RELEASE_COUNT=$(gh api repos/${{ github.repository }}/releases --jq '[.[] | select(.tag_name == "dev-latest")] | length')
+            if [ "$RELEASE_COUNT" -gt 0 ]; then
+              echo "dev-latest release found on attempt $i"
+              break
+            fi
+            echo "Waiting for dev-latest release to appear (attempt $i/12)..."
+            sleep 5
+          done
+
+          # Fetch the dev-latest release info from the releases list
+          gh api repos/${{ github.repository }}/releases \
+            --jq '[.[] | select(.tag_name == "dev-latest")][0] | {
+              version: .tag_name,
+              name: .name,
+              date: .published_at,
+              build_number: ${{ github.run_number }},
+              branch: "${{ inputs.branch }}",
+              notes: .body,
+              assets: ([.assets[] | select(.name | test("\\.(dmg|exe|AppImage|deb)$")) | {
+                name: .name,
+                url: .browser_download_url,
+                size: .size,
+                platform: (
+                  if (.name | test("-arm64\\.dmg$")) then "macOS (Apple Silicon)"
+                  elif (.name | test("\\.dmg$")) then "macOS (Intel)"
+                  elif (.name | test("-Setup-.*\\.exe$")) then "Windows (Installer)"
+                  elif (.name | test("\\.exe$")) then "Windows (Portable)"
+                  elif (.name | test("\\.AppImage$")) then "Linux (AppImage)"
+                  elif (.name | test("\\.deb$")) then "Linux (Debian)"
+                  else "Other"
+                  end
+                )
+              }] | sort_by(
+                if .platform == "Windows (Installer)" then 0
+                elif .platform == "Windows (Portable)" then 1
+                elif .platform == "macOS (Apple Silicon)" then 2
+                elif .platform == "macOS (Intel)" then 3
+                elif .platform == "Linux (AppImage)" then 4
+                elif .platform == "Linux (Debian)" then 5
+                else 6
+                end
+              ))
+            }' > dev-releases.json
+
+          echo "Generated dev-releases.json:"
+          cat dev-releases.json
+
+      - name: Commit and push dev-releases.json
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add dev-releases.json
+          if git diff --cached --quiet; then
+            echo "No changes to dev-releases.json"
+          else
+            git commit -m "[Chore] Update dev-releases.json (build #${{ github.run_number }})"
+            git push origin ${{ inputs.branch }}
+          fi

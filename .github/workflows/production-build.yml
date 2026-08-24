@@ -1,0 +1,564 @@
+# Production Build Workflow
+# Builds signed and notarized app for all platforms (macOS, Windows, Linux)
+# Creates a GitHub Release with all artifacts
+# Triggered manually via GitHub Actions UI (run it from the branch you want to release, normally main)
+
+name: Production Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.0)'
+        required: true
+        type: string
+      create_release:
+        description: 'Create GitHub Release'
+        required: true
+        default: true
+        type: boolean
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # Validate version format before building
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate version format
+        run: |
+          VERSION="${{ inputs.version }}"
+          # Allow X.Y.Z or X.Y.Z-prerelease (e.g., 1.0.0, 1.0.0-beta.1, 1.0.0-rc.1)
+          if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "Error: Version must be in format X.Y.Z or X.Y.Z-prerelease (e.g., 1.0.0, 1.0.0-beta.1)"
+            exit 1
+          fi
+          echo "Version $VERSION is valid"
+
+  # macOS ARM64 (Apple Silicon) - runs on macos-latest (ARM64 runner)
+  build-macos-arm64:
+    needs: validate
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update version
+        run: npm version ${{ inputs.version }} --no-git-tag-version
+
+      - name: Build application
+        run: npm run build
+
+      - name: Import Code Signing Certificate
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          echo "$MACOS_CERTIFICATE" | base64 --decode > $RUNNER_TEMP/certificate.p12
+          security import $RUNNER_TEMP/certificate.p12 \
+            -P "$MACOS_CERTIFICATE_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+      - name: Package and Sign for macOS (ARM64)
+        run: npx electron-builder --mac --arm64 --publish never
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Notarize macOS App
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          for DMG in release/*.dmg; do
+            echo "Notarizing $DMG..."
+            xcrun notarytool submit "$DMG" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_ID_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" \
+              --wait
+            xcrun stapler staple "$DMG"
+          done
+
+      - name: Upload macOS ARM64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: EasyGrade-macOS-arm64-${{ inputs.version }}
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/*.yml
+            release/*.blockmap
+          if-no-files-found: error
+          retention-days: 90
+
+  # macOS x64 (Intel) - runs on macos-15-intel runner (free tier)
+  build-macos-x64:
+    needs: validate
+    runs-on: macos-15-intel
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update version
+        run: npm version ${{ inputs.version }} --no-git-tag-version
+
+      - name: Build application
+        run: npm run build
+
+      - name: Import Code Signing Certificate
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          echo "$MACOS_CERTIFICATE" | base64 --decode > $RUNNER_TEMP/certificate.p12
+          security import $RUNNER_TEMP/certificate.p12 \
+            -P "$MACOS_CERTIFICATE_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+      - name: Package and Sign for macOS (x64)
+        run: npx electron-builder --mac --x64 --publish never
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Notarize macOS App
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          for DMG in release/*.dmg; do
+            echo "Notarizing $DMG..."
+            xcrun notarytool submit "$DMG" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_ID_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" \
+              --wait
+            xcrun stapler staple "$DMG"
+          done
+
+      - name: Upload macOS x64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: EasyGrade-macOS-x64-${{ inputs.version }}
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/*.yml
+            release/*.blockmap
+          if-no-files-found: error
+          retention-days: 90
+
+  build-windows:
+    needs: validate
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update version
+        run: npm version ${{ inputs.version }} --no-git-tag-version
+
+      - name: Build application
+        run: npm run build
+
+      - name: Import Code Signing Certificate
+        shell: powershell
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if ($env:WINDOWS_CERTIFICATE) {
+            $certificateBytes = [System.Convert]::FromBase64String($env:WINDOWS_CERTIFICATE)
+            $certPath = "$env:RUNNER_TEMP\certificate.pfx"
+            [System.IO.File]::WriteAllBytes($certPath, $certificateBytes)
+            echo "WIN_CSC_LINK=$certPath" >> $env:GITHUB_ENV
+            echo "WIN_CSC_KEY_PASSWORD=$env:WINDOWS_CERTIFICATE_PASSWORD" >> $env:GITHUB_ENV
+            Write-Host "Certificate imported successfully"
+          } else {
+            Write-Host "No certificate provided, skipping code signing"
+          }
+
+      - name: Package for Windows
+        run: npx electron-builder --win --publish never
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: EasyGrade-Windows-${{ inputs.version }}
+          path: |
+            release/*.exe
+            release/*.yml
+            release/*.blockmap
+          if-no-files-found: error
+          retention-days: 90
+
+  build-linux:
+    needs: validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfuse2
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update version
+        run: npm version ${{ inputs.version }} --no-git-tag-version
+
+      - name: Build application
+        run: npm run build
+
+      - name: Package for Linux
+        run: npx electron-builder --linux --publish never
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: EasyGrade-Linux-${{ inputs.version }}
+          path: |
+            release/*.AppImage
+            release/*.deb
+            release/*.yml
+          if-no-files-found: error
+          retention-days: 90
+
+  # Create GitHub Release with all artifacts
+  release:
+    needs: [build-macos-arm64, build-macos-x64, build-windows, build-linux]
+    if: ${{ inputs.create_release }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for release notes generation
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display downloaded files
+        run: find artifacts -type f -name "*" | head -50
+
+      - name: Update package.json version
+        run: |
+          npm version ${{ inputs.version }} --no-git-tag-version
+
+      - name: Commit version bump
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add package.json package-lock.json
+          git commit -m "[Chore] Release v${{ inputs.version }}" || echo "No changes to commit"
+          git tag -a "v${{ inputs.version }}" -m "Release v${{ inputs.version }}"
+          git push origin HEAD --tags
+
+      - name: Determine if prerelease
+        id: prerelease
+        run: |
+          VERSION="${{ inputs.version }}"
+          if [[ $VERSION == *-* ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate release notes from commits
+        id: release_notes
+        run: |
+          # Find the previous production tag (exclude dev-latest, sort by version)
+          PREV_TAG=$(git tag -l 'v*' | grep -v 'dev' | sort -V | tail -2 | head -1)
+
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag found, using all commits"
+            COMMIT_RANGE="HEAD"
+          else
+            echo "Previous tag: $PREV_TAG"
+            COMMIT_RANGE="${PREV_TAG}..HEAD"
+          fi
+
+          # Get commits and parse by category
+          echo "Commits since $PREV_TAG:"
+          git log $COMMIT_RANGE --oneline
+
+          # Generate categorized release notes
+          {
+            echo "RELEASE_NOTES<<EOF"
+
+            # Features (exclude merge commits to avoid duplicates)
+            FEATURES=$(git log $COMMIT_RANGE --oneline --no-merges --grep='\[Feature\]' | sed 's/^[a-f0-9]* \[Feature\] /- /' | grep -v '^$' || true)
+            if [ -n "$FEATURES" ]; then
+              echo "### New Features"
+              echo "$FEATURES"
+              echo ""
+            fi
+
+            # Fixes
+            FIXES=$(git log $COMMIT_RANGE --oneline --no-merges --grep='\[Fix\]' | sed 's/^[a-f0-9]* \[Fix\] /- /' | grep -v '^$' || true)
+            if [ -n "$FIXES" ]; then
+              echo "### Bug Fixes"
+              echo "$FIXES"
+              echo ""
+            fi
+
+            # Refactors
+            REFACTORS=$(git log $COMMIT_RANGE --oneline --no-merges --grep='\[Refactor\]' | sed 's/^[a-f0-9]* \[Refactor\] /- /' | grep -v '^$' || true)
+            if [ -n "$REFACTORS" ]; then
+              echo "### Refactoring"
+              echo "$REFACTORS"
+              echo ""
+            fi
+
+            # Chores (exclude the automated release and manifest commits)
+            CHORES=$(git log $COMMIT_RANGE --oneline --no-merges --grep='\[Chore\]' | sed 's/^[a-f0-9]* \[Chore\] /- /' | grep -v '^$' | grep -v '^- Release v' | grep -v '^- Update dev-releases.json' | grep -v '^- Update releases.json' || true)
+            if [ -n "$CHORES" ]; then
+              echo "### Maintenance"
+              echo "$CHORES"
+              echo ""
+            fi
+
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Clean up duplicate and debug files
+        run: |
+          # Remove builder-debug.yml files (duplicates from each platform)
+          find artifacts -name "builder-debug.yml" -delete
+
+          # Merge latest-mac.yml from both macOS builds (arm64 + x64)
+          # Each build produces its own latest-mac.yml with only its arch's files.
+          # electron-updater needs a single yml with ALL architectures listed.
+          MAC_YMLS=($(find artifacts -name "latest-mac.yml"))
+          if [ ${#MAC_YMLS[@]} -eq 2 ]; then
+            echo "Merging two latest-mac.yml files for multi-arch auto-update..."
+            yq eval-all '
+              select(fileIndex == 0).files = (select(fileIndex == 0).files + select(fileIndex == 1).files) |
+              select(fileIndex == 0)
+            ' "${MAC_YMLS[0]}" "${MAC_YMLS[1]}" > artifacts/latest-mac.yml
+            rm "${MAC_YMLS[0]}" "${MAC_YMLS[1]}"
+            echo "Merged latest-mac.yml:"
+            cat artifacts/latest-mac.yml
+          elif [ ${#MAC_YMLS[@]} -eq 1 ]; then
+            cp "${MAC_YMLS[0]}" artifacts/latest-mac.yml
+            rm "${MAC_YMLS[0]}"
+          fi
+
+          # Deduplicate Windows and Linux yml files (only one build each, just move to root)
+          for pattern in "latest.yml" "latest-linux.yml"; do
+            FOUND=($(find artifacts -mindepth 2 -name "$pattern"))
+            if [ ${#FOUND[@]} -gt 0 ]; then
+              cp "${FOUND[0]}" "artifacts/$pattern"
+              for f in "${FOUND[@]}"; do rm "$f"; done
+            fi
+          done
+
+          # List what we're uploading
+          echo "Files to upload:"
+          find artifacts -type f | sort
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ inputs.version }}
+          name: EasyGrade v${{ inputs.version }}
+          draft: false
+          prerelease: ${{ steps.prerelease.outputs.is_prerelease }}
+          files: |
+            artifacts/**/*.dmg
+            artifacts/**/*.zip
+            artifacts/**/*.exe
+            artifacts/**/*.AppImage
+            artifacts/**/*.deb
+            artifacts/**/latest*.yml
+            artifacts/**/*.blockmap
+          body: |
+            ## EasyGrade v${{ inputs.version }}
+
+            ${{ steps.release_notes.outputs.RELEASE_NOTES }}
+
+            ---
+
+            ### Downloads
+
+            | Platform | Download |
+            |----------|----------|
+            | macOS (Apple Silicon) | `EasyGrade-${{ inputs.version }}-arm64.dmg` |
+            | macOS (Intel) | `EasyGrade-${{ inputs.version }}-x64.dmg` |
+            | Windows (Installer) | `EasyGrade-Setup-${{ inputs.version }}.exe` |
+            | Windows (Portable) | `EasyGrade-Portable-${{ inputs.version }}.exe` |
+            | Linux (AppImage) | `EasyGrade-${{ inputs.version }}-x64.AppImage` |
+            | Linux (Debian) | `EasyGrade-${{ inputs.version }}-x64.deb` |
+
+            ### Installation
+
+            **macOS**: Download the DMG, open it, and drag EasyGrade to your Applications folder.
+
+            **Windows**: Download and run the installer, or run the portable EXE directly. If you see a SmartScreen warning, click "More info" then "Run anyway".
+
+            **Linux (AppImage)**: Download the AppImage, make it executable (`chmod +x`), and run with: `./EasyGrade-*.AppImage --no-sandbox`
+
+            **Linux (Debian/Ubuntu)**: Install the .deb package: `sudo dpkg -i EasyGrade-*.deb`
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Update releases.json for website consumption
+  update-releases-json:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Pull latest changes
+        run: git pull origin ${{ github.ref_name }}
+
+      - name: Generate releases.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Wait for the new release to appear in the list (retry up to 30 seconds)
+          for i in {1..6}; do
+            if gh api repos/${{ github.repository }}/releases/tags/v${{ inputs.version }} --silent 2>/dev/null; then
+              echo "Release v${{ inputs.version }} found on attempt $i"
+              break
+            fi
+            echo "Waiting for release to be available (attempt $i/6)..."
+            sleep 5
+          done
+
+          # Fetch last 10 production releases (exclude dev-latest)
+          gh api repos/${{ github.repository }}/releases \
+            --jq '[.[] | select(.tag_name != "dev-latest") | {
+              version: .tag_name,
+              name: .name,
+              date: .published_at,
+              prerelease: .prerelease,
+              notes: .body,
+              assets: ([.assets[] | select(.name | test("\\.(dmg|exe|AppImage|deb)$")) | {
+                name: .name,
+                url: .browser_download_url,
+                size: .size,
+                platform: (
+                  if (.name | test("-arm64\\.dmg$")) then "macOS (Apple Silicon)"
+                  elif (.name | test("\\.dmg$")) then "macOS (Intel)"
+                  elif (.name | test("-Setup-.*\\.exe$")) then "Windows (Installer)"
+                  elif (.name | test("\\.exe$")) then "Windows (Portable)"
+                  elif (.name | test("\\.AppImage$")) then "Linux (AppImage)"
+                  elif (.name | test("\\.deb$")) then "Linux (Debian)"
+                  else "Other"
+                  end
+                )
+              }] | sort_by(
+                if .platform == "Windows (Installer)" then 0
+                elif .platform == "Windows (Portable)" then 1
+                elif .platform == "macOS (Apple Silicon)" then 2
+                elif .platform == "macOS (Intel)" then 3
+                elif .platform == "Linux (AppImage)" then 4
+                elif .platform == "Linux (Debian)" then 5
+                else 6
+                end
+              ))
+            }][:10]' > releases.json
+
+          echo "Generated releases.json:"
+          cat releases.json
+
+      - name: Commit and push releases.json
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add releases.json
+          if git diff --cached --quiet; then
+            echo "No changes to releases.json"
+          else
+            git commit -m "[Chore] Update releases.json (v${{ inputs.version }})"
+            git push origin ${{ github.ref_name }}
+          fi
