@@ -4,7 +4,8 @@ import type { ScanProgress, UpdateState } from '@shared/types'
 
 const api: EasyGradeApi = {
   app: {
-    info: () => ipcRenderer.invoke(IPC.app.info)
+    info: () => ipcRenderer.invoke(IPC.app.info),
+    copyText: (text) => ipcRenderer.invoke(IPC.app.copyText, text)
   },
   sections: {
     list: (includeArchived) => ipcRenderer.invoke(IPC.sections.list, includeArchived),
