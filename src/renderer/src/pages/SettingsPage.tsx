@@ -20,7 +20,8 @@ import DeleteSweepIcon from '@mui/icons-material/DeleteSweep'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
 import RestoreIcon from '@mui/icons-material/Restore'
 import RestartAltIcon from '@mui/icons-material/RestartAlt'
-import type { AppInfo, BackupStatus, PurgePreview, ThemeMode } from '@shared/types'
+import SystemUpdateAltIcon from '@mui/icons-material/SystemUpdateAlt'
+import type { AppInfo, BackupStatus, PurgePreview, ThemeMode, UpdateState } from '@shared/types'
 import { api, unwrap } from '@/api'
 import { useSettingsStore } from '@/stores/settings.store'
 import { useUiStore } from '@/stores/ui.store'
@@ -40,7 +41,8 @@ export function SettingsPage(): JSX.Element {
 
   const [info, setInfo] = useState<AppInfo | null>(null)
   const [backup, setBackup] = useState<BackupStatus | null>(null)
-  const [busy, setBusy] = useState<'purge' | 'backup' | 'restore' | 'reset' | null>(null)
+  const [busy, setBusy] = useState<'purge' | 'backup' | 'restore' | 'reset' | 'update' | null>(null)
+  const [updateState, setUpdateState] = useState<UpdateState | null>(null)
   const [purgePreview, setPurgePreview] = useState<PurgePreview | null>(null)
   const [restoreOpen, setRestoreOpen] = useState(false)
   const [resetOpen, setResetOpen] = useState(false)
@@ -57,8 +59,27 @@ export function SettingsPage(): JSX.Element {
     void unwrap(api.app.info())
       .then(setInfo)
       .catch(() => setInfo(null))
+    void unwrap(api.update.getState())
+      .then(setUpdateState)
+      .catch(() => setUpdateState(null))
     loadBackupStatus()
+    return api.update.onStatus(setUpdateState)
   }, [loadBackupStatus])
+
+  const checkForUpdates = (): void => {
+    setBusy('update')
+    void unwrap(api.update.check())
+      .then((state) => {
+        setUpdateState(state)
+        const status = state.status
+        if (!state.enabled) toast('info', 'Automatic updates are off in development builds.')
+        else if (status.status === 'not-available') toast('success', `EasyGrade ${state.currentVersion} is the latest version.`)
+        else if (status.status === 'error') toast('error', `Could not check for updates: ${status.message}`)
+        // "available" and later states are shown by the update notification.
+      })
+      .catch((err: unknown) => toast('error', describeError(err)))
+      .finally(() => setBusy(null))
+  }
 
   const save = async (patch: Parameters<typeof update>[0]): Promise<boolean> => {
     try {
@@ -290,6 +311,14 @@ export function SettingsPage(): JSX.Element {
               Data location: {info.userDataPath}
             </Typography>
           ) : null}
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2 }} flexWrap="wrap" useFlexGap>
+            <Button variant="outlined" size="small" startIcon={<SystemUpdateAltIcon />} onClick={checkForUpdates} disabled={busy !== null}>
+              Check for updates
+            </Button>
+            <Typography variant="body2" color="text.secondary">
+              {describeUpdate(updateState)}
+            </Typography>
+          </Stack>
         </Paper>
       </Stack>
 
@@ -335,6 +364,32 @@ export function SettingsPage(): JSX.Element {
       />
     </>
   )
+}
+
+function describeUpdate(state: UpdateState | null): string {
+  if (!state) return ''
+  if (!state.enabled) {
+    return state.disabledReason === 'dev-build'
+      ? 'Automatic updates are off for dev builds.'
+      : 'Automatic updates are off while running from source.'
+  }
+  const s = state.status
+  switch (s.status) {
+    case 'checking':
+      return 'Checking...'
+    case 'available':
+      return `Version ${s.version} is available.`
+    case 'downloading':
+      return `Downloading version ${s.version ?? ''}...`
+    case 'downloaded':
+      return `Version ${s.version} is ready to install.`
+    case 'error':
+      return `Last check failed: ${s.message}`
+    case 'not-available':
+      return 'Up to date. EasyGrade checks for updates automatically a few times a day.'
+    default:
+      return 'EasyGrade checks for updates automatically a few times a day.'
+  }
 }
 
 interface NumberSettingProps {

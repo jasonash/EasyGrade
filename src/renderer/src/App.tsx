@@ -6,6 +6,7 @@ import { useUiStore } from '@/stores/ui.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { AppShell } from '@/components/layout/AppShell'
 import { Toasts } from '@/components/common/Toasts'
+import { UpdateNotification } from '@/components/common/UpdateNotification'
 import { SectionsPage } from '@/pages/SectionsPage'
 import { SectionDetailPage } from '@/pages/SectionDetailPage'
 import { TestsPage } from '@/pages/TestsPage'
@@ -42,6 +43,7 @@ export function App(): JSX.Element {
         {page === 'settings' ? <SettingsPage /> : null}
       </AppShell>
       <Toasts />
+      <UpdateNotification />
     </ThemeProvider>
   )
 }
