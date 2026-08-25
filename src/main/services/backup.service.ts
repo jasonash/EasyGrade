@@ -35,7 +35,8 @@ export interface MirrorStats {
 const SNAPSHOT_PREFIX = 'easygrade-backup-'
 const SNAPSHOT_SUFFIX = '.db'
 
-function stamp(date: Date): string {
+/** Filesystem-safe timestamp used in snapshot and kept-database names. */
+export function stamp(date: Date): string {
   return date.toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19)
 }
 

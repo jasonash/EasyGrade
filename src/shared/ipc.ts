@@ -17,6 +17,7 @@ import type {
   PurgeOutcome,
   PurgePreview,
   RestoreOutcome,
+  ResetOutcome,
   GradeResult,
   OverrideAnswerInput,
   RegradeOutcome,
@@ -144,8 +145,10 @@ export interface EasyGradeApi {
     status: () => Promise<ApiResult<BackupStatus>>
     /** Snapshot the database and mirror the scans into the backup folder now. */
     create: () => Promise<ApiResult<BackupOutcome>>
-    /** Pick a snapshot, replace the local data with it, and relaunch the app. Null when cancelled. */
+    /** Pick a snapshot and replace the local data with it in place. Null when cancelled. The renderer reloads afterwards. */
     restore: () => Promise<ApiResult<RestoreOutcome | null>>
+    /** Start over: keep the current database beside a fresh empty one, delete all scan images. The renderer reloads afterwards. */
+    reset: () => Promise<ApiResult<ResetOutcome>>
   }
   settings: {
     get: () => Promise<ApiResult<Settings>>
@@ -227,7 +230,8 @@ export const IPC = {
     chooseDir: 'backup:chooseDir',
     status: 'backup:status',
     create: 'backup:create',
-    restore: 'backup:restore'
+    restore: 'backup:restore',
+    reset: 'backup:reset'
   },
   settings: {
     get: 'settings:get',

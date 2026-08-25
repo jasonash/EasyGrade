@@ -54,3 +54,9 @@ export interface RestoreOutcome {
   snapshotPath: string
   scanFilesCopied: number
 }
+
+/** Result of "Reset all data": the previous database is kept beside the fresh one. */
+export interface ResetOutcome {
+  keptDatabasePath: string | null
+  scanBytesRemoved: number
+}

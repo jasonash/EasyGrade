@@ -1,6 +1,6 @@
 import { BrowserWindow, dialog } from 'electron'
 import { IPC } from '@shared/ipc'
-import type { BackupOutcome, BackupStatus, RestoreOutcome } from '@shared/types'
+import type { BackupOutcome, BackupStatus, ResetOutcome, RestoreOutcome } from '@shared/types'
 import type { Services } from '../services'
 import { handle } from './handle'
 
@@ -10,6 +10,8 @@ export interface BackupHooks {
    * renderer reloads itself afterwards; no process restart is involved.
    */
   restore: (snapshotPath: string) => RestoreOutcome
+  /** Keep the current database beside a fresh one, delete scan images, reopen in place. */
+  reset: () => ResetOutcome
 }
 
 /** Backup folder, snapshots, and restore. */
@@ -49,6 +51,8 @@ export function registerBackupHandlers(services: () => Services, hooks: BackupHo
     if (result.canceled || !path) return null
     return hooks.restore(path)
   })
+
+  handle<[], ResetOutcome>(IPC.backup.reset, () => hooks.reset())
 }
 
 function focused(): BrowserWindow | undefined {

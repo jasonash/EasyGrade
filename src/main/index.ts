@@ -93,6 +93,11 @@ app.whenReady().then(() => {
         const outcome = dataStore.restore(snapshotPath)
         wireScanProgress(dataStore.current)
         return outcome
+      },
+      reset: () => {
+        const outcome = dataStore.reset()
+        wireScanProgress(dataStore.current)
+        return outcome
       }
     }
   )

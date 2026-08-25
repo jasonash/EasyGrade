@@ -289,4 +289,37 @@ describe('DataStore', () => {
       rmSync(root, { recursive: true, force: true })
     }
   })
+
+  it('reset keeps the old database beside a fresh one, removes scans, and resets settings', () => {
+    const root = mkdtempSync(join(tmpdir(), 'easygrade-reset-'))
+    const dbPath = join(root, 'data', 'easygrade.db')
+    const scansDir = join(root, 'scans')
+    const store = new DataStore({ dbPath, scansDir, appVersion: 't', machineName: 'm' })
+    try {
+      const before = store.open()
+      before.settings.set({ theme: 'light', backupDir: join(root, 'backup') })
+      before.sections.create({ name: 'Gone', schoolYear: '2026-27' })
+      mkdirSync(join(scansDir, '1'), { recursive: true })
+      writeFileSync(join(scansDir, '1', 'page-001.png'), Buffer.alloc(1000))
+
+      const outcome = store.reset(new Date('2026-08-25T14:00:00Z'))
+      expect(outcome.keptDatabasePath).toBe(`${dbPath}.before-reset-2026-08-25_14-00-00`)
+      expect(existsSync(outcome.keptDatabasePath ?? '')).toBe(true)
+      expect(outcome.scanBytesRemoved).toBe(1000)
+      expect(existsSync(scansDir)).toBe(false)
+      expect(store.isOpen()).toBe(true)
+      const after = store.current
+      expect(after).not.toBe(before)
+      expect(after.sections.list(true)).toHaveLength(0)
+      expect(after.settings.get().theme).toBe('dark')
+      expect(after.settings.get().backupDir).toBeNull()
+      // The kept database still has the old data.
+      const kept = openDatabase({ path: outcome.keptDatabasePath ?? '' })
+      expect((kept.prepare(`SELECT COUNT(*) AS n FROM sections WHERE name = 'Gone'`).get() as { n: number }).n).toBe(1)
+      kept.close()
+    } finally {
+      store.close()
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
 })
