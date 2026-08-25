@@ -53,12 +53,12 @@ Batch order for multi-page files is always S1, S2, S3, S4, S5, S6, D.
 |---|---|
 | `scansnap_batch_normal.pdf` | All seven pages in one run, in order, face up and right way round, default settings. |
 | `scansnap_batch_upsidedown.pdf` | Same stack and order, but rotate S1 and S4 180 degrees before feeding. |
-| `scansnap_batch_bw.pdf` | S1 and S4 only, scanner set to black and white (not gray or color), if it offers that mode. |
 | `scansnap_single_s4.pdf` | S4 alone, default settings. |
 
 ### Canon flatbed
 | File name | How |
 |---|---|
+| `canon-flatbed_all_straight.pdf` | All seven pages one at a time on the flatbed, squared up, saved as one PDF in order. |
 | `canon-flatbed_s1_straight.pdf` | S1 squared against the guides, default settings. |
 | `canon-flatbed_s4_askew.pdf` | S4 placed visibly crooked, about 5 degrees off. |
 | `canon-flatbed_s2_pen.pdf` | S2 (pen), straight. |
@@ -88,7 +88,11 @@ If the Canon software saves JPG or PNG instead of PDF, keep that extension.
 | `iphone-camera_s4_lowlight.jpg` | S4 in dim room light, no flash. |
 | `iphone-camera_s3_blankname.jpg` | S3 (handwritten name) flat in good light. |
 
-## 4. Expected results (what Phase 5 will assert)
+## 4. Status (2026-08-25)
+
+All files above were captured by Jason on 2026-08-25 (the ScanSnap black-and-white variant was dropped; it came out identical to the normal batch). First pass with mupdf + jsQR: every sheet's QR decoded on every device, including the photocopy, the askew flatbed scan, the angled and low-light phone photos, and the upside-down batch. Page 7 of each batch is D and correctly has no QR.
+
+## 5. Expected results (what Phase 5 will assert)
 
 - S1, S2, S3, S6 (Fixture A): every row equals its instruction, 10/10.
 - S3 lands in "needs assignment" (no student in the QR) with the handwritten name visible.
