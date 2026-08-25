@@ -43,6 +43,7 @@ import {
 /** Helvetica ascender as a fraction of the font size; pdfkit places baselines this far below the line top. */
 const ASCENT = 0.718
 const FONT = 'Helvetica, Arial, sans-serif'
+const MONO = 'Courier, "Courier New", monospace'
 const INK = '#111'
 const MUTED = '#666'
 
@@ -95,7 +96,7 @@ export function SheetPreview({ sectionName, code, measure, choiceCounts }: Props
           <rect key={`${r}-${c}`} x={QR_X + 8 + c * 30} y={QR_Y + 8 + r * 30} width={(r + c) % 2 === 0 ? 14 : 8} height={(r + c) % 2 === 0 ? 14 : 8} fill={INK} opacity={0.35} />
         ))
       )}
-      <text x={QR_X + QR_SIZE / 2} y={QR_CODE_TEXT_Y + QR_CODE_FONT_SIZE * ASCENT} fontFamily={FONT} fontSize={QR_CODE_FONT_SIZE} fill={INK} textAnchor="middle">
+      <text x={QR_X + QR_SIZE / 2} y={QR_CODE_TEXT_Y + QR_CODE_FONT_SIZE * ASCENT} fontFamily={MONO} fontSize={QR_CODE_FONT_SIZE} fill={INK} textAnchor="middle">
         {code}
       </text>
 

@@ -39,6 +39,12 @@ const api: EasyGradeApi = {
     copy: (input) => ipcRenderer.invoke(IPC.tests.copy, input),
     remove: (id) => ipcRenderer.invoke(IPC.tests.remove, id)
   },
+  print: {
+    preview: (input) => ipcRenderer.invoke(IPC.print.preview, input),
+    savePdf: (input) => ipcRenderer.invoke(IPC.print.savePdf, input),
+    printPdf: (input) => ipcRenderer.invoke(IPC.print.printPdf, input),
+    listRuns: (testId) => ipcRenderer.invoke(IPC.print.listRuns, testId)
+  },
   settings: {
     get: () => ipcRenderer.invoke(IPC.settings.get),
     set: (patch) => ipcRenderer.invoke(IPC.settings.set, patch)

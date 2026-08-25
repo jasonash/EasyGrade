@@ -22,6 +22,7 @@ import { ROSTER_TEMPLATE_FILENAME } from '@shared/roster-import'
 import type { Services } from '../services'
 import { AppError } from '../services/errors'
 import { handle } from './handle'
+import { registerPrintHandlers } from './print'
 
 const MAX_IMPORT_BYTES = 1_000_000
 
@@ -76,6 +77,8 @@ export function registerIpcHandlers(services: Services): void {
   handle<[number], ReturnType<typeof tests.unlock>>(IPC.tests.unlock, (id) => tests.unlock(id))
   handle<[TestCopyInput], ReturnType<typeof tests.copy>>(IPC.tests.copy, (input) => tests.copy(input))
   handle<[number], void>(IPC.tests.remove, (id) => tests.remove(id))
+
+  registerPrintHandlers(services)
 
   handle<[], ReturnType<Services['settings']['get']>>(IPC.settings.get, () => services.settings.get())
   handle<[SettingsPatch], ReturnType<Services['settings']['set']>>(IPC.settings.set, (patch) =>

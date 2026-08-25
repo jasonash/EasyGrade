@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { TestsTable } from './TestsTable'
 import { TestFormDialog } from './TestFormDialog'
+import { PrintDialog } from '@/components/print/PrintDialog'
 
 interface Props {
   /** Restrict to one section (section detail tab); otherwise show every visible test. */
@@ -28,6 +29,7 @@ export function TestsList({ sectionId, filter }: Props): JSX.Element {
   const [newOpen, setNewOpen] = useState(false)
   const [copyTarget, setCopyTarget] = useState<TestSummary | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<TestSummary | null>(null)
+  const [printTarget, setPrintTarget] = useState<TestSummary | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -103,6 +105,7 @@ export function TestsList({ sectionId, filter }: Props): JSX.Element {
           showSection={sectionId === undefined}
           onOpen={(t) => openTest(t.id)}
           onCopy={setCopyTarget}
+          onPrint={setPrintTarget}
           onDelete={setDeleteTarget}
         />
       )}
@@ -126,6 +129,13 @@ export function TestsList({ sectionId, filter }: Props): JSX.Element {
         description="The copy becomes a new draft with its own code and answer key."
         onClose={() => setCopyTarget(null)}
         onSubmit={copyTest}
+      />
+
+      <PrintDialog
+        open={printTarget !== null}
+        test={printTarget}
+        onClose={() => setPrintTarget(null)}
+        onPrinted={() => void load()}
       />
 
       <ConfirmDialog

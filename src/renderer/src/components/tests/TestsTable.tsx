@@ -10,10 +10,11 @@ interface Props {
   showSection?: boolean
   onOpen: (test: TestSummary) => void
   onCopy: (test: TestSummary) => void
+  onPrint: (test: TestSummary) => void
   onDelete: (test: TestSummary) => void
 }
 
-export function TestsTable({ tests, showSection = false, onOpen, onCopy, onDelete }: Props): JSX.Element {
+export function TestsTable({ tests, showSection = false, onOpen, onCopy, onPrint, onDelete }: Props): JSX.Element {
   const [menu, setMenu] = useState<{ el: HTMLElement; test: TestSummary } | null>(null)
   const closeMenu = (): void => setMenu(null)
   const openMenu = (event: MouseEvent<HTMLElement>, test: TestSummary): void => {
@@ -86,6 +87,15 @@ export function TestsTable({ tests, showSection = false, onOpen, onCopy, onDelet
           }}
         >
           {menu?.test.status === 'finalized' ? 'Open' : 'Edit'}
+        </MenuItem>
+        <MenuItem
+          disabled={menu?.test.status !== 'finalized'}
+          onClick={() => {
+            if (menu) onPrint(menu.test)
+            closeMenu()
+          }}
+        >
+          Print...
         </MenuItem>
         <MenuItem
           onClick={() => {
