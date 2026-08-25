@@ -151,7 +151,13 @@ export function PageReviewDrawer({ pageId, onClose, onChanged }: Props): JSX.Ele
   const percent = result ? formatPercent(percentOf(result.correctCount, result.possibleCount)) : ''
 
   return (
-    <Drawer anchor="right" open={pageId !== null} onClose={onClose} slotProps={{ paper: { sx: { width: { xs: '100vw', md: 940 }, maxWidth: '100vw' } } }}>
+    <Drawer
+      anchor="right"
+      open={pageId !== null}
+      onClose={onClose}
+      sx={{ zIndex: (theme) => theme.zIndex.modal }}
+      slotProps={{ paper: { sx: { width: { xs: '100vw', md: 940 }, maxWidth: '100vw' } } }}
+    >
       <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
         <Stack direction="row" alignItems="flex-start" spacing={1} sx={{ mb: 1 }}>
           <Box sx={{ flexGrow: 1, minWidth: 0 }}>
