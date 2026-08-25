@@ -12,6 +12,7 @@
   "private": true,
   "scripts": {
     "dev": "electron-vite dev",
+    "dev:typecheck": "npm run typecheck && electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "start": "electron-vite preview",
