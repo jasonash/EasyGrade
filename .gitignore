@@ -109,3 +109,6 @@ Desktop.ini
 *.swp
 *.swo
 *~
+
+# Real scan fixtures (private, large, may contain handwriting)
+tests/fixtures/real/
