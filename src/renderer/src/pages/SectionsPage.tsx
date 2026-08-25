@@ -26,12 +26,15 @@ import { useUiStore } from '@/stores/ui.store'
 import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState } from '@/components/common/EmptyState'
 import { SectionDialog } from '@/components/sections/SectionDialog'
-import { ApiCallError } from '@/api'
+import { useSchoolYearFilter } from '@/lib/schoolYear'
+import { describeError as describe } from '@/lib/errors'
 
 export function SectionsPage(): JSX.Element {
   const { sections, schoolYears, includeArchived, load, setIncludeArchived, create, update, remove } =
     useSectionsStore()
   const toast = useUiStore((s) => s.toast)
+  const openSection = useUiStore((s) => s.openSection)
+  const { year, matches } = useSchoolYearFilter()
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Section | null>(null)
@@ -86,6 +89,9 @@ export function SectionsPage(): JSX.Element {
     }
   }
 
+  const visible = sections.filter(matches)
+  const hiddenByYear = sections.length - visible.length
+
   return (
     <>
       <PageHeader
@@ -108,6 +114,11 @@ export function SectionsPage(): JSX.Element {
             </Button>
           }
         />
+      ) : visible.length === 0 ? (
+        <EmptyState
+          title={`No sections for ${year}`}
+          description="Change the school year in the top bar to see other sections."
+        />
       ) : (
         <Paper variant="outlined">
           <Table size="small">
@@ -121,8 +132,13 @@ export function SectionsPage(): JSX.Element {
               </TableRow>
             </TableHead>
             <TableBody>
-              {sections.map((section) => (
-                <TableRow key={section.id} hover>
+              {visible.map((section) => (
+                <TableRow
+                  key={section.id}
+                  hover
+                  onClick={() => openSection(section.id)}
+                  sx={{ cursor: 'pointer' }}
+                >
                   <TableCell>
                     <Stack direction="row" spacing={1} alignItems="center">
                       <Typography>{section.name}</Typography>
@@ -133,7 +149,14 @@ export function SectionsPage(): JSX.Element {
                   <TableCell align="right">{section.studentCount}</TableCell>
                   <TableCell align="right">{section.testCount}</TableCell>
                   <TableCell align="right">
-                    <IconButton size="small" onClick={(e) => openMenu(e, section)} aria-label="Section actions">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openMenu(e, section)
+                      }}
+                      aria-label="Section actions"
+                    >
                       <MoreVertIcon fontSize="small" />
                     </IconButton>
                   </TableCell>
@@ -144,7 +167,12 @@ export function SectionsPage(): JSX.Element {
         </Paper>
       )}
 
-      <Stack direction="row" justifyContent="flex-end" sx={{ mt: 2 }}>
+      <Stack direction="row" justifyContent="flex-end" alignItems="center" spacing={2} sx={{ mt: 2 }}>
+        {hiddenByYear > 0 && visible.length > 0 ? (
+          <Typography variant="caption" color="text.secondary">
+            {hiddenByYear} hidden by the school year filter
+          </Typography>
+        ) : null}
         <FormControlLabel
           control={
             <Switch
@@ -158,6 +186,14 @@ export function SectionsPage(): JSX.Element {
       </Stack>
 
       <Menu anchorEl={menuAnchor?.el} open={Boolean(menuAnchor)} onClose={closeMenu}>
+        <MenuItem
+          onClick={() => {
+            if (menuAnchor) openSection(menuAnchor.section.id, 'roster')
+            closeMenu()
+          }}
+        >
+          Open roster
+        </MenuItem>
         <MenuItem
           onClick={() => {
             if (menuAnchor) {
@@ -191,8 +227,3 @@ export function SectionsPage(): JSX.Element {
   )
 }
 
-function describe(err: unknown): string {
-  if (err instanceof ApiCallError) return err.message
-  if (err instanceof Error) return err.message
-  return 'Something went wrong'
-}

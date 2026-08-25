@@ -7,6 +7,7 @@ import { useSettingsStore } from '@/stores/settings.store'
 import { AppShell } from '@/components/layout/AppShell'
 import { Toasts } from '@/components/common/Toasts'
 import { SectionsPage } from '@/pages/SectionsPage'
+import { SectionDetailPage } from '@/pages/SectionDetailPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 
@@ -26,6 +27,7 @@ export function App(): JSX.Element {
       <CssBaseline />
       <AppShell>
         {page === 'sections' ? <SectionsPage /> : null}
+        {page === 'section-detail' ? <SectionDetailPage /> : null}
         {page === 'tests' ? (
           <PlaceholderPage title="Tests" subtitle="Create and print single-page tests" phase="Phase 3" />
         ) : null}
