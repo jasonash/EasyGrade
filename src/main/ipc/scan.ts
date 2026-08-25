@@ -6,17 +6,23 @@ import { SUPPORTED_SCAN_EXTENSIONS } from '../scan/stages/rasterize'
 import { handle } from './handle'
 
 /**
- * Scan import handlers. The file picker and progress fan-out live here;
- * everything else is ScanService.
+ * Forward scan progress to every window. Called for each set of services the
+ * app builds, including the one rebuilt after a restore.
  */
-export function registerScanHandlers(services: Services): void {
-  const scan = services.scan
-
-  scan.onProgress((progress: ScanProgress) => {
+export function wireScanProgress(services: Services): void {
+  services.scan.onProgress((progress: ScanProgress) => {
     for (const win of BrowserWindow.getAllWindows()) {
       if (!win.isDestroyed()) win.webContents.send(IPC.scan.progress, progress)
     }
   })
+}
+
+/**
+ * Scan import handlers. The file picker lives here; everything else is
+ * ScanService and RetentionService.
+ */
+export function registerScanHandlers(services: () => Services): void {
+  const scan = (): Services['scan'] => services().scan
 
   handle<[], string[] | null>(IPC.scan.pickFiles, async () => {
     const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
@@ -33,15 +39,15 @@ export function registerScanHandlers(services: Services): void {
     return result.filePaths
   })
 
-  handle<[string[]], ScanBatch>(IPC.scan.importFiles, (paths) => scan.importFiles(paths))
-  handle<[], ScanBatch[]>(IPC.scan.listBatches, () => scan.listBatches())
-  handle<[number], ScanBatch>(IPC.scan.getBatch, (id) => scan.getBatch(id))
-  handle<[number], ScanPageDetail[]>(IPC.scan.listPages, (id) => scan.listPages(id))
-  handle<[number], ScanPageDetail>(IPC.scan.getPage, (id) => scan.getPage(id))
-  handle<[number], void>(IPC.scan.removeBatch, (id) => scan.removeBatch(id))
-  handle<[AssignPageInput], AssignOutcome>(IPC.scan.assignPage, (input) => scan.assignPage(input))
-  handle<[ResolveConflictInput], ScanPageDetail>(IPC.scan.resolveConflict, (input) => scan.resolveConflict(input))
-  handle<[number], ScanPageDetail>(IPC.scan.discardPage, (id) => scan.discardPage(id))
-  handle<[], PurgePreview>(IPC.scan.purgePreview, () => services.retention.preview())
-  handle<[], PurgeOutcome>(IPC.scan.purge, () => services.retention.purge())
+  handle<[string[]], ScanBatch>(IPC.scan.importFiles, (paths) => scan().importFiles(paths))
+  handle<[], ScanBatch[]>(IPC.scan.listBatches, () => scan().listBatches())
+  handle<[number], ScanBatch>(IPC.scan.getBatch, (id) => scan().getBatch(id))
+  handle<[number], ScanPageDetail[]>(IPC.scan.listPages, (id) => scan().listPages(id))
+  handle<[number], ScanPageDetail>(IPC.scan.getPage, (id) => scan().getPage(id))
+  handle<[number], void>(IPC.scan.removeBatch, (id) => scan().removeBatch(id))
+  handle<[AssignPageInput], AssignOutcome>(IPC.scan.assignPage, (input) => scan().assignPage(input))
+  handle<[ResolveConflictInput], ScanPageDetail>(IPC.scan.resolveConflict, (input) => scan().resolveConflict(input))
+  handle<[number], ScanPageDetail>(IPC.scan.discardPage, (id) => scan().discardPage(id))
+  handle<[], PurgePreview>(IPC.scan.purgePreview, () => services().retention.preview())
+  handle<[], PurgeOutcome>(IPC.scan.purge, () => services().retention.purge())
 }

@@ -28,6 +28,9 @@ import { formatBytes, formatDateTime, formatShortDate } from '@/lib/format'
 import { PageHeader } from '@/components/common/PageHeader'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 
+/** Long enough for the restored notice to be seen before the page reloads. */
+const RELOAD_DELAY_MS = 800
+
 export function SettingsPage(): JSX.Element {
   const settings = useSettingsStore((s) => s.settings)
   const update = useSettingsStore((s) => s.update)
@@ -122,7 +125,9 @@ export function SettingsPage(): JSX.Element {
         setRestoreOpen(false)
         if (!outcome) return
         setRestoring(true)
-        toast('info', 'Backup restored. EasyGrade will restart in a moment.')
+        // The main process has already reopened the restored database; a
+        // reload drops every cached store and refetches from it.
+        window.setTimeout(() => window.location.reload(), RELOAD_DELAY_MS)
       })
       .catch((err: unknown) => toast('error', describeError(err)))
       .finally(() => setBusy(null))
@@ -134,7 +139,7 @@ export function SettingsPage(): JSX.Element {
     <>
       <PageHeader title="Settings" />
       <Stack spacing={2} sx={{ maxWidth: 720 }}>
-        {restoring ? <Alert severity="info">Restarting with the restored data...</Alert> : null}
+        {restoring ? <Alert severity="info">Backup restored. Reloading...</Alert> : null}
 
         <Paper variant="outlined" sx={{ p: 3 }}>
           <FormControl>
@@ -279,7 +284,7 @@ export function SettingsPage(): JSX.Element {
       <ConfirmDialog
         open={restoreOpen}
         title="Restore from a backup?"
-        message="You will pick a backup snapshot (easygrade-backup-....db). EasyGrade replaces its current data with that snapshot, copies back any scan images stored beside it, and restarts. The current database is kept next to the new one in the data folder in case you need it."
+        message="You will pick a backup snapshot (easygrade-backup-....db). EasyGrade replaces its current data with that snapshot, copies back any scan images stored beside it, and reloads. The current database is kept next to the new one in the data folder in case you need it."
         confirmLabel="Choose backup..."
         busy={busy === 'restore'}
         onClose={() => setRestoreOpen(false)}

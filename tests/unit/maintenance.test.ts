@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { openDatabase, type Db } from '../../src/main/db/database'
+import { DataStore } from '../../src/main/data-store'
 import { SectionRepository } from '../../src/main/db/repositories/section.repo'
 import { SettingsRepository } from '../../src/main/db/repositories/settings.repo'
 import { StudentRepository } from '../../src/main/db/repositories/student.repo'
@@ -251,5 +252,41 @@ describe('BackupService', () => {
     expect((restored.prepare(`SELECT COUNT(*) AS n FROM sections WHERE name = 'Old'`).get() as { n: number }).n).toBe(0)
     restored.close()
     expect(listFiles(join(root, 'scans')).size).toBe(listFiles(scansDir).size)
+  })
+})
+
+describe('DataStore', () => {
+  it('restores a snapshot in place: closes, swaps, reopens, and rebuilds the services', () => {
+    const root = mkdtempSync(join(tmpdir(), 'easygrade-store-'))
+    const store = new DataStore({ dbPath: join(root, 'data', 'easygrade.db'), scansDir: join(root, 'scans'), appVersion: 't', machineName: 'm' })
+    try {
+      const before = store.open()
+      const backupDir = join(root, 'backup')
+      before.settings.set({ backupDir })
+      const kept = before.sections.create({ name: 'Kept', schoolYear: '2026-27' })
+      const snap = before.backup.create()
+      before.sections.remove(kept.id)
+      expect(before.sections.list(true)).toHaveLength(0)
+
+      // A bad snapshot must leave the store open and untouched.
+      const bogus = join(root, 'bogus.db')
+      writeFileSync(bogus, 'not a database')
+      expect(() => store.restore(bogus)).toThrow(AppError)
+      expect(store.isOpen()).toBe(true)
+      expect(store.current).toBe(before)
+
+      const outcome = store.restore(snap.snapshotPath)
+      expect(outcome.snapshotPath).toBe(snap.snapshotPath)
+      expect(store.isOpen()).toBe(true)
+      const after = store.current
+      expect(after).not.toBe(before)
+      expect(after.sections.list(true).map((s) => s.name)).toEqual(['Kept'])
+      expect(readdirSync(join(root, 'data')).some((n) => n.startsWith('easygrade.db.before-restore-'))).toBe(true)
+      // The rebuilt backup service sees the reopened database.
+      expect(() => after.backup.create()).not.toThrow()
+    } finally {
+      store.close()
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 })
