@@ -19,6 +19,7 @@ import BackupIcon from '@mui/icons-material/Backup'
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
 import RestoreIcon from '@mui/icons-material/Restore'
+import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import type { AppInfo, BackupStatus, PurgePreview, ThemeMode } from '@shared/types'
 import { api, unwrap } from '@/api'
 import { useSettingsStore } from '@/stores/settings.store'
@@ -39,10 +40,12 @@ export function SettingsPage(): JSX.Element {
 
   const [info, setInfo] = useState<AppInfo | null>(null)
   const [backup, setBackup] = useState<BackupStatus | null>(null)
-  const [busy, setBusy] = useState<'purge' | 'backup' | 'restore' | null>(null)
+  const [busy, setBusy] = useState<'purge' | 'backup' | 'restore' | 'reset' | null>(null)
   const [purgePreview, setPurgePreview] = useState<PurgePreview | null>(null)
   const [restoreOpen, setRestoreOpen] = useState(false)
-  const [restoring, setRestoring] = useState(false)
+  const [resetOpen, setResetOpen] = useState(false)
+  /** Notice shown while the page waits to reload after a restore or reset. */
+  const [reloadNotice, setReloadNotice] = useState<string | null>(null)
 
   const loadBackupStatus = useCallback((): void => {
     void unwrap(api.backup.status())
@@ -124,13 +127,27 @@ export function SettingsPage(): JSX.Element {
       .then((outcome) => {
         setRestoreOpen(false)
         if (!outcome) return
-        setRestoring(true)
-        // The main process has already reopened the restored database; a
-        // reload drops every cached store and refetches from it.
-        window.setTimeout(() => window.location.reload(), RELOAD_DELAY_MS)
+        reloadSoon('Backup restored. Reloading...')
       })
       .catch((err: unknown) => toast('error', describeError(err)))
       .finally(() => setBusy(null))
+  }
+
+  const reset = (): void => {
+    setBusy('reset')
+    void unwrap(api.backup.reset())
+      .then(() => {
+        setResetOpen(false)
+        reloadSoon('All data cleared. Reloading...')
+      })
+      .catch((err: unknown) => toast('error', describeError(err)))
+      .finally(() => setBusy(null))
+  }
+
+  /** The main process has already reopened the database; a reload drops every cached store and refetches from it. */
+  const reloadSoon = (notice: string): void => {
+    setReloadNotice(notice)
+    window.setTimeout(() => window.location.reload(), RELOAD_DELAY_MS)
   }
 
   const newest = backup?.snapshots[0] ?? null
@@ -139,7 +156,7 @@ export function SettingsPage(): JSX.Element {
     <>
       <PageHeader title="Settings" />
       <Stack spacing={2} sx={{ maxWidth: 720 }}>
-        {restoring ? <Alert severity="info">Backup restored. Reloading...</Alert> : null}
+        {reloadNotice ? <Alert severity="info">{reloadNotice}</Alert> : null}
 
         <Paper variant="outlined" sx={{ p: 3 }}>
           <FormControl>
@@ -249,6 +266,21 @@ export function SettingsPage(): JSX.Element {
         </Paper>
 
         <Paper variant="outlined" sx={{ p: 3 }}>
+          <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5 }}>
+            Start over
+          </Typography>
+          <Stack spacing={1.5} alignItems="flex-start">
+            <Typography variant="body2" color="text.secondary">
+              Clears every section, student, test, result, scan, and setting, for example at the start of a new school year. The current
+              database is kept in the data folder in case you change your mind; backups are not touched.
+            </Typography>
+            <Button variant="outlined" color="error" startIcon={<RestartAltIcon />} onClick={() => setResetOpen(true)} disabled={busy !== null}>
+              Reset all data...
+            </Button>
+          </Stack>
+        </Paper>
+
+        <Paper variant="outlined" sx={{ p: 3 }}>
           <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
             About
           </Typography>
@@ -289,6 +321,17 @@ export function SettingsPage(): JSX.Element {
         busy={busy === 'restore'}
         onClose={() => setRestoreOpen(false)}
         onConfirm={restore}
+      />
+
+      <ConfirmDialog
+        open={resetOpen}
+        title="Reset all data?"
+        message="This removes every section, student, test, result, and scan image, and returns the settings to their defaults. The current database is kept next to the new one in the data folder (easygrade.db.before-reset-...). Backup snapshots are not touched, and a backup can be restored later from this page."
+        confirmLabel="Reset all data"
+        destructive
+        busy={busy === 'reset'}
+        onClose={() => setResetOpen(false)}
+        onConfirm={reset}
       />
     </>
   )

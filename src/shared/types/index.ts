@@ -40,6 +40,7 @@ export type {
   BackupStatus,
   BackupOutcome,
   RestoreOutcome,
+  ResetOutcome,
   Section,
   SectionInput,
   SectionUpdate,

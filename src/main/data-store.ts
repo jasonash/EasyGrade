@@ -1,6 +1,8 @@
-import type { RestoreOutcome } from '@shared/types'
+import { existsSync, renameSync, rmSync } from 'node:fs'
+import type { ResetOutcome, RestoreOutcome } from '@shared/types'
 import { openDatabase, type Db } from './db/database'
 import { createServices, type Services } from './services'
+import { dirBytes, stamp } from './services/backup.service'
 import { AppError } from './services/errors'
 
 export interface DataStoreOptions {
@@ -62,6 +64,32 @@ export class DataStore {
     this.close()
     try {
       return backup.restore(snapshotPath)
+    } finally {
+      this.open()
+    }
+  }
+
+  /**
+   * Start over. The current database is renamed to
+   * `easygrade.db.before-reset-<stamp>` (never deleted), every scan image is
+   * removed, and a fresh database is opened in its place. Settings live in
+   * the database, so they reset too.
+   */
+  reset(now = new Date()): ResetOutcome {
+    const { dbPath, scansDir } = this.options
+    this.current
+    this.close()
+    try {
+      let keptDatabasePath: string | null = null
+      if (existsSync(dbPath)) {
+        keptDatabasePath = `${dbPath}.before-reset-${stamp(now)}`
+        renameSync(dbPath, keptDatabasePath)
+      }
+      rmSync(`${dbPath}-wal`, { force: true })
+      rmSync(`${dbPath}-shm`, { force: true })
+      const scanBytesRemoved = dirBytes(scansDir)
+      rmSync(scansDir, { recursive: true, force: true })
+      return { keptDatabasePath, scanBytesRemoved }
     } finally {
       this.open()
     }

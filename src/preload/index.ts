@@ -83,7 +83,8 @@ const api: EasyGradeApi = {
     chooseDir: () => ipcRenderer.invoke(IPC.backup.chooseDir),
     status: () => ipcRenderer.invoke(IPC.backup.status),
     create: () => ipcRenderer.invoke(IPC.backup.create),
-    restore: () => ipcRenderer.invoke(IPC.backup.restore)
+    restore: () => ipcRenderer.invoke(IPC.backup.restore),
+    reset: () => ipcRenderer.invoke(IPC.backup.reset)
   },
   settings: {
     get: () => ipcRenderer.invoke(IPC.settings.get),
