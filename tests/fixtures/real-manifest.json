@@ -1,0 +1,467 @@
+{
+  "generatedAt": "2026-08-25T15:01:13.521Z",
+  "database": "/Users/jason/Library/Application Support/easygrade/easygrade.db",
+  "section": {
+    "id": 4,
+    "name": "Fixtures"
+  },
+  "students": {
+    "alpha": "81RP7K",
+    "bravo": "GAK5H0",
+    "charlie": "ME0R6S"
+  },
+  "tests": {
+    "clean": {
+      "code": "9PR1N1",
+      "layoutVersion": 1,
+      "id": 3,
+      "title": "Fixture A: Clean marks",
+      "rows": [
+        {
+          "q": 1,
+          "choiceCount": 4,
+          "key": "B",
+          "accept": [
+            "B"
+          ],
+          "review": "no",
+          "note": "Clean single mark on B"
+        },
+        {
+          "q": 2,
+          "choiceCount": 2,
+          "key": "A",
+          "accept": [
+            "A"
+          ],
+          "review": "no",
+          "note": "Clean single mark on A"
+        },
+        {
+          "q": 3,
+          "choiceCount": 5,
+          "key": "E",
+          "accept": [
+            "E"
+          ],
+          "review": "no",
+          "note": "Clean single mark on E"
+        },
+        {
+          "q": 4,
+          "choiceCount": 3,
+          "key": "C",
+          "accept": [
+            "C"
+          ],
+          "review": "no",
+          "note": "Clean single mark on C"
+        },
+        {
+          "q": 5,
+          "choiceCount": 4,
+          "key": "D",
+          "accept": [
+            "D"
+          ],
+          "review": "no",
+          "note": "Clean single mark on D"
+        },
+        {
+          "q": 6,
+          "choiceCount": 2,
+          "key": "B",
+          "accept": [
+            "B"
+          ],
+          "review": "no",
+          "note": "Clean single mark on B"
+        },
+        {
+          "q": 7,
+          "choiceCount": 5,
+          "key": "A",
+          "accept": [
+            "A"
+          ],
+          "review": "no",
+          "note": "Clean single mark on A"
+        },
+        {
+          "q": 8,
+          "choiceCount": 4,
+          "key": "C",
+          "accept": [
+            "C"
+          ],
+          "review": "no",
+          "note": "Clean single mark on C"
+        },
+        {
+          "q": 9,
+          "choiceCount": 3,
+          "key": "B",
+          "accept": [
+            "B"
+          ],
+          "review": "no",
+          "note": "Clean single mark on B"
+        },
+        {
+          "q": 10,
+          "choiceCount": 5,
+          "key": "D",
+          "accept": [
+            "D"
+          ],
+          "review": "no",
+          "note": "Clean single mark on D"
+        }
+      ]
+    },
+    "edge": {
+      "code": "GZ7B5V",
+      "layoutVersion": 1,
+      "id": 4,
+      "title": "Fixture B: Edge cases",
+      "rows": [
+        {
+          "q": 1,
+          "choiceCount": 4,
+          "key": "B",
+          "accept": [
+            "B"
+          ],
+          "review": "no",
+          "note": "Control row"
+        },
+        {
+          "q": 2,
+          "choiceCount": 4,
+          "key": "A",
+          "accept": [
+            "blank"
+          ],
+          "review": "yes",
+          "note": "Blank row scores 0 and goes to review"
+        },
+        {
+          "q": 3,
+          "choiceCount": 4,
+          "key": "A",
+          "accept": [
+            "multiple"
+          ],
+          "review": "yes",
+          "note": "Two dark marks score 0 and go to review"
+        },
+        {
+          "q": 4,
+          "choiceCount": 4,
+          "key": "D",
+          "accept": [
+            "D",
+            "multiple"
+          ],
+          "review": "either",
+          "note": "Dark vs faint: D is ideal, review is acceptable, B is a failure"
+        },
+        {
+          "q": 5,
+          "choiceCount": 5,
+          "key": "A",
+          "accept": [
+            "A"
+          ],
+          "review": "either",
+          "note": "Erasure residue on E must not win"
+        },
+        {
+          "q": 6,
+          "choiceCount": 4,
+          "key": "C",
+          "accept": [
+            "C",
+            "blank"
+          ],
+          "review": "either",
+          "note": "Partial mark: C or review; any other letter is a failure"
+        },
+        {
+          "q": 7,
+          "choiceCount": 4,
+          "key": "B",
+          "accept": [
+            "B",
+            "multiple"
+          ],
+          "review": "either",
+          "note": "Stray line through the strip; B is ideal"
+        },
+        {
+          "q": 8,
+          "choiceCount": 4,
+          "key": "C",
+          "accept": [
+            "C"
+          ],
+          "review": "no",
+          "note": "Pen ink is darker and glossier than pencil"
+        },
+        {
+          "q": 9,
+          "choiceCount": 4,
+          "key": "A",
+          "accept": [
+            "A",
+            "blank"
+          ],
+          "review": "either",
+          "note": "Threshold calibration for partial fills"
+        },
+        {
+          "q": 10,
+          "choiceCount": 4,
+          "key": "A",
+          "accept": [
+            "blank"
+          ],
+          "review": "yes",
+          "note": "Marks in the text column must be ignored"
+        }
+      ]
+    }
+  },
+  "sheets": [
+    {
+      "id": "S1",
+      "test": "clean",
+      "student": "alpha",
+      "howToFill": "Fixture A for Test Alpha. Fill every row exactly as instructed, in pencil.",
+      "bucket": "graded",
+      "rows": "as-instructed",
+      "testCode": "9PR1N1",
+      "studentCode": "81RP7K"
+    },
+    {
+      "id": "S2",
+      "test": "clean",
+      "student": "bravo",
+      "howToFill": "Fixture A for Test Bravo. Fill every row exactly as instructed, in blue or black pen.",
+      "bucket": "graded",
+      "rows": "as-instructed",
+      "testCode": "9PR1N1",
+      "studentCode": "GAK5H0"
+    },
+    {
+      "id": "S3",
+      "test": "clean",
+      "student": null,
+      "howToFill": "Fixture A blank sheet. Handwrite \"Test Delta\" in the Name box and \"Fixtures\" in the Section box, then fill every row as instructed, in pencil.",
+      "bucket": "needs-assignment",
+      "rows": "as-instructed",
+      "testCode": "9PR1N1",
+      "studentCode": null
+    },
+    {
+      "id": "S4",
+      "test": "edge",
+      "student": "alpha",
+      "howToFill": "Fixture B for Test Alpha. Follow every row exactly, in pencil unless the row says pen.",
+      "bucket": "graded",
+      "rows": "as-instructed",
+      "testCode": "GZ7B5V",
+      "studentCode": "81RP7K"
+    },
+    {
+      "id": "S5",
+      "test": "edge",
+      "student": "charlie",
+      "howToFill": "Fixture B for Test Charlie. Leave the whole sheet untouched: no marks at all.",
+      "bucket": "graded",
+      "rows": "all-blank",
+      "testCode": "GZ7B5V",
+      "studentCode": "ME0R6S"
+    },
+    {
+      "id": "S6",
+      "test": "clean",
+      "student": "alpha",
+      "howToFill": "A photocopy of S1 made on the Canon after S1 is filled in. Same QR as S1, so it must surface as a duplicate.",
+      "bucket": "conflict",
+      "rows": "as-instructed",
+      "testCode": "9PR1N1",
+      "studentCode": "81RP7K"
+    },
+    {
+      "id": "D",
+      "test": null,
+      "student": null,
+      "howToFill": "Any ordinary printed page that is not an answer sheet (a letter, a worksheet, a recipe).",
+      "bucket": "not-a-sheet",
+      "testCode": null,
+      "studentCode": null
+    }
+  ],
+  "files": [
+    {
+      "file": "scansnap_batch_normal.pdf",
+      "device": "scansnap",
+      "pages": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6",
+        "D"
+      ],
+      "howToCapture": "All seven pages in one feeder run, in this order, all face up and right way round, default settings."
+    },
+    {
+      "file": "scansnap_batch_upsidedown.pdf",
+      "device": "scansnap",
+      "pages": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6",
+        "D"
+      ],
+      "howToCapture": "Same stack and order, but rotate S1 and S4 180 degrees (upside down) before feeding."
+    },
+    {
+      "file": "scansnap_batch_bw.pdf",
+      "device": "scansnap",
+      "pages": [
+        "S1",
+        "S4"
+      ],
+      "howToCapture": "S1 and S4 only, with the ScanSnap set to black and white (not gray or color) if it offers that mode."
+    },
+    {
+      "file": "scansnap_single_s4.pdf",
+      "device": "scansnap",
+      "pages": [
+        "S4"
+      ],
+      "howToCapture": "S4 alone, default settings, so there is a single-page file."
+    },
+    {
+      "file": "canon-flatbed_s1_straight.pdf",
+      "device": "canon-flatbed",
+      "pages": [
+        "S1"
+      ],
+      "howToCapture": "S1 on the flatbed, squared up against the guides, default settings. PDF, JPG, or PNG is fine."
+    },
+    {
+      "file": "canon-flatbed_s4_askew.pdf",
+      "device": "canon-flatbed",
+      "pages": [
+        "S4"
+      ],
+      "howToCapture": "S4 on the flatbed placed visibly crooked, about 5 degrees off."
+    },
+    {
+      "file": "canon-flatbed_s2_pen.pdf",
+      "device": "canon-flatbed",
+      "pages": [
+        "S2"
+      ],
+      "howToCapture": "S2 (pen) on the flatbed, straight."
+    },
+    {
+      "file": "canon-flatbed_s6_photocopy.pdf",
+      "device": "canon-flatbed",
+      "pages": [
+        "S6"
+      ],
+      "howToCapture": "The photocopy S6 on the flatbed, straight."
+    },
+    {
+      "file": "canon-flatbed_s5_untouched.pdf",
+      "device": "canon-flatbed",
+      "pages": [
+        "S5"
+      ],
+      "howToCapture": "S5 (untouched) on the flatbed, straight."
+    },
+    {
+      "file": "iphone-notes_s1.pdf",
+      "device": "iphone-notes",
+      "pages": [
+        "S1"
+      ],
+      "howToCapture": "Notes app > Scan Documents, S1 on a table, let it auto-capture and auto-crop, save as PDF."
+    },
+    {
+      "file": "iphone-notes_s4.pdf",
+      "device": "iphone-notes",
+      "pages": [
+        "S4"
+      ],
+      "howToCapture": "Notes app scan of S4, same as above."
+    },
+    {
+      "file": "iphone-notes_batch.pdf",
+      "device": "iphone-notes",
+      "pages": [
+        "S1",
+        "S2",
+        "S4"
+      ],
+      "howToCapture": "One Notes scan session capturing S1, S2, S4 as three pages in one PDF."
+    },
+    {
+      "file": "iphone-adobescan_s4.pdf",
+      "device": "iphone-adobescan",
+      "pages": [
+        "S4"
+      ],
+      "howToCapture": "Adobe Scan of S4 with its default document enhancement on."
+    },
+    {
+      "file": "iphone-adobescan_s1.pdf",
+      "device": "iphone-adobescan",
+      "pages": [
+        "S1"
+      ],
+      "howToCapture": "Adobe Scan of S1."
+    },
+    {
+      "file": "iphone-camera_s1_flat.jpg",
+      "device": "iphone-camera",
+      "pages": [
+        "S1"
+      ],
+      "howToCapture": "Plain Camera app, phone held flat directly above S1 in good light, whole page in frame with some table around it. Export as JPG (not HEIC)."
+    },
+    {
+      "file": "iphone-camera_s4_angle.jpg",
+      "device": "iphone-camera",
+      "pages": [
+        "S4"
+      ],
+      "howToCapture": "Plain Camera app, S4 photographed from an angle (about 30 degrees off vertical) with your own shadow falling across part of it. JPG."
+    },
+    {
+      "file": "iphone-camera_s4_lowlight.jpg",
+      "device": "iphone-camera",
+      "pages": [
+        "S4"
+      ],
+      "howToCapture": "Plain Camera app, S4 in dim room light, no flash. JPG."
+    },
+    {
+      "file": "iphone-camera_s3_blankname.jpg",
+      "device": "iphone-camera",
+      "pages": [
+        "S3"
+      ],
+      "howToCapture": "Plain Camera app, S3 (handwritten name) flat in good light. JPG."
+    }
+  ]
+}
