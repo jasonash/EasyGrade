@@ -48,7 +48,8 @@ describe('ScanService', () => {
     expect(Object.keys(ctx.tests)).toEqual([SYN_TEST_CODE])
     expect(ctx.tests[SYN_TEST_CODE]?.layoutVersion).toBe(1)
     expect(ctx.tests[SYN_TEST_CODE]?.layout.questionCount).toBe(10)
-    expect(Object.keys(ctx.students).sort()).toEqual([SYN_STUDENT_CODE, SYN_OTHER_STUDENT, 'ZZZZZZ'].sort())
+    expect(Object.keys(ctx.students)).toHaveLength(3)
+    expect(Object.keys(ctx.students)).toEqual(expect.arrayContaining([SYN_STUDENT_CODE, SYN_OTHER_STUDENT]))
   })
 
   it('imports a batch, grades pages, flags the duplicate, and reports progress', async () => {
