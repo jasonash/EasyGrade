@@ -87,7 +87,8 @@
         "from": "resources",
         "to": "resources",
         "filter": [
-          "icon.png"
+          "icon.png",
+          "splash.html"
         ]
       }
     ],
