@@ -250,16 +250,16 @@ export const FILES: FixtureFile[] = [
     howToCapture: 'Same stack and order, but rotate S1 and S4 180 degrees (upside down) before feeding.'
   },
   {
-    file: 'scansnap_batch_bw.pdf',
-    device: 'scansnap',
-    pages: ['S1', 'S4'],
-    howToCapture: 'S1 and S4 only, with the ScanSnap set to black and white (not gray or color) if it offers that mode.'
-  },
-  {
     file: 'scansnap_single_s4.pdf',
     device: 'scansnap',
     pages: ['S4'],
     howToCapture: 'S4 alone, default settings, so there is a single-page file.'
+  },
+  {
+    file: 'canon-flatbed_all_straight.pdf',
+    device: 'canon-flatbed',
+    pages: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'D'],
+    howToCapture: 'All seven pages one at a time on the flatbed, squared up, saved as one PDF in order.'
   },
   {
     file: 'canon-flatbed_s1_straight.pdf',
