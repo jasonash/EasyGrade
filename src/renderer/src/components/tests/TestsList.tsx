@@ -25,6 +25,7 @@ export function TestsList({ sectionId, filter }: Props): JSX.Element {
   const sections = useSectionsStore((s) => s.sections)
   const toast = useUiStore((s) => s.toast)
   const openTest = useUiStore((s) => s.openTest)
+  const openTestResults = useUiStore((s) => s.openTestResults)
 
   const [newOpen, setNewOpen] = useState(false)
   const [copyTarget, setCopyTarget] = useState<TestSummary | null>(null)
@@ -104,6 +105,7 @@ export function TestsList({ sectionId, filter }: Props): JSX.Element {
           tests={visible}
           showSection={sectionId === undefined}
           onOpen={(t) => openTest(t.id)}
+          onResults={(t) => openTestResults(t.id)}
           onCopy={setCopyTarget}
           onPrint={setPrintTarget}
           onDelete={setDeleteTarget}

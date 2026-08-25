@@ -17,11 +17,24 @@ function blankQuestion(): { stem: string; choices: string[]; correctChoice: numb
   return { stem: '', choices: ['', '', '', ''], correctChoice: 0 }
 }
 
+export type KeyChangeListener = (testId: number) => void
+
 export class TestService {
+  private readonly keyListeners: KeyChangeListener[] = []
+
   constructor(
     private readonly repo: TestRepository,
     private readonly sections: SectionRepository
   ) {}
+
+  /** Called after the answer key changes or the test is re-finalized, so results can be rescored. */
+  onKeyChange(listener: KeyChangeListener): void {
+    this.keyListeners.push(listener)
+  }
+
+  private notifyKeyChange(testId: number): void {
+    for (const listener of this.keyListeners) listener(testId)
+  }
 
   list(sectionId?: number): TestSummary[] {
     if (sectionId !== undefined) this.requireSection(sectionId)
@@ -79,6 +92,7 @@ export class TestService {
       }
     })
     this.repo.updateKey(parsed.id, parsed.correctChoices)
+    this.notifyKeyChange(parsed.id)
     return this.get(parsed.id)
   }
 
@@ -116,6 +130,7 @@ export class TestService {
       finalizedAt: new Date().toISOString()
     })
     if (!updated) throw new AppError('NOT_FOUND', `Test ${id} not found`)
+    this.notifyKeyChange(id)
     return updated
   }
 

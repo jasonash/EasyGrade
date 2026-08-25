@@ -9,12 +9,14 @@ interface Props {
   tests: TestSummary[]
   showSection?: boolean
   onOpen: (test: TestSummary) => void
+  /** Finalized tests open their results on row click; the editor stays in the menu. */
+  onResults: (test: TestSummary) => void
   onCopy: (test: TestSummary) => void
   onPrint: (test: TestSummary) => void
   onDelete: (test: TestSummary) => void
 }
 
-export function TestsTable({ tests, showSection = false, onOpen, onCopy, onPrint, onDelete }: Props): JSX.Element {
+export function TestsTable({ tests, showSection = false, onOpen, onResults, onCopy, onPrint, onDelete }: Props): JSX.Element {
   const [menu, setMenu] = useState<{ el: HTMLElement; test: TestSummary } | null>(null)
   const closeMenu = (): void => setMenu(null)
   const openMenu = (event: MouseEvent<HTMLElement>, test: TestSummary): void => {
@@ -39,7 +41,7 @@ export function TestsTable({ tests, showSection = false, onOpen, onCopy, onPrint
           </TableHead>
           <TableBody>
             {tests.map((test) => (
-              <TableRow key={test.id} hover onClick={() => onOpen(test)} sx={{ cursor: 'pointer' }}>
+              <TableRow key={test.id} hover onClick={() => (test.status === 'finalized' ? onResults(test) : onOpen(test))} sx={{ cursor: 'pointer' }}>
                 <TableCell>
                   <Typography>{test.title}</Typography>
                 </TableCell>
@@ -86,7 +88,16 @@ export function TestsTable({ tests, showSection = false, onOpen, onCopy, onPrint
             closeMenu()
           }}
         >
-          {menu?.test.status === 'finalized' ? 'Open' : 'Edit'}
+          {menu?.test.status === 'finalized' ? 'Open test' : 'Edit'}
+        </MenuItem>
+        <MenuItem
+          disabled={menu?.test.status !== 'finalized'}
+          onClick={() => {
+            if (menu) onResults(menu.test)
+            closeMenu()
+          }}
+        >
+          Results
         </MenuItem>
         <MenuItem
           disabled={menu?.test.status !== 'finalized'}

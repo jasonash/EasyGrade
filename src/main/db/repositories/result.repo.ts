@@ -1,6 +1,6 @@
 import type { Db } from '../database'
 import { nowIso } from '../database'
-import type { GradeResult, QuestionFlag } from '@shared/schemas'
+import type { AnswerOverride, GradeResult, QuestionFlag } from '@shared/schemas'
 
 interface ResultRow {
   id: number
@@ -36,7 +36,19 @@ function parseFlags(json: string): QuestionFlag[] {
   }
 }
 
-function toResult(row: ResultRow): GradeResult {
+interface OverrideRow {
+  result_id: number
+  question_position: number
+  raw_choice: number | null
+  override_choice: number | null
+  note: string | null
+}
+
+function toOverride(row: OverrideRow): AnswerOverride {
+  return { q: row.question_position, rawChoice: row.raw_choice, overrideChoice: row.override_choice, note: row.note }
+}
+
+function toResult(row: ResultRow, overrides: AnswerOverride[]): GradeResult {
   return {
     id: row.id,
     testId: row.test_id,
@@ -48,6 +60,7 @@ function toResult(row: ResultRow): GradeResult {
     correctCount: row.correct_count,
     possibleCount: row.possible_count,
     flags: parseFlags(row.flags_json),
+    overrides,
     reviewed: row.reviewed === 1,
     gradedAt: row.graded_at,
     updatedAt: row.updated_at
@@ -66,22 +79,98 @@ export interface ResultInsert {
   flags: QuestionFlag[]
 }
 
+export interface ScorePatch {
+  finalAnswers: (number | null)[]
+  correctCount: number
+  possibleCount: number
+  flags: QuestionFlag[]
+}
+
 export class ResultRepository {
   constructor(private readonly db: Db) {}
 
   findByPair(testId: number, studentId: number): GradeResult | null {
     const row = this.db.prepare('SELECT * FROM results WHERE test_id = ? AND student_id = ?').get(testId, studentId) as ResultRow | undefined
-    return row ? toResult(row) : null
+    return row ? this.hydrate(row) : null
   }
 
   findById(id: number): GradeResult | null {
     const row = this.db.prepare('SELECT * FROM results WHERE id = ?').get(id) as ResultRow | undefined
-    return row ? toResult(row) : null
+    return row ? this.hydrate(row) : null
+  }
+
+  findByPage(scanPageId: number): GradeResult | null {
+    const row = this.db.prepare('SELECT * FROM results WHERE scan_page_id = ?').get(scanPageId) as ResultRow | undefined
+    return row ? this.hydrate(row) : null
   }
 
   listByTest(testId: number): GradeResult[] {
     const rows = this.db.prepare('SELECT * FROM results WHERE test_id = ? ORDER BY id').all(testId) as ResultRow[]
-    return rows.map(toResult)
+    return this.hydrateAll(rows)
+  }
+
+  listByStudent(studentId: number): GradeResult[] {
+    const rows = this.db.prepare('SELECT * FROM results WHERE student_id = ? ORDER BY graded_at DESC, id DESC').all(studentId) as ResultRow[]
+    return this.hydrateAll(rows)
+  }
+
+  private hydrate(row: ResultRow): GradeResult {
+    const overrides = this.db
+      .prepare('SELECT * FROM answer_overrides WHERE result_id = ? ORDER BY question_position')
+      .all(row.id) as OverrideRow[]
+    return toResult(row, overrides.map(toOverride))
+  }
+
+  private hydrateAll(rows: ResultRow[]): GradeResult[] {
+    if (rows.length === 0) return []
+    const ids = rows.map((r) => r.id)
+    const overrides = this.db
+      .prepare(`SELECT * FROM answer_overrides WHERE result_id IN (${ids.map(() => '?').join(',')}) ORDER BY question_position`)
+      .all(...ids) as OverrideRow[]
+    const byResult = new Map<number, AnswerOverride[]>()
+    for (const o of overrides) {
+      const list = byResult.get(o.result_id) ?? []
+      list.push(toOverride(o))
+      byResult.set(o.result_id, list)
+    }
+    return rows.map((row) => toResult(row, byResult.get(row.id) ?? []))
+  }
+
+  /** Store the recomputed final answers, score, and flags. */
+  updateScore(id: number, patch: ScorePatch): void {
+    this.db
+      .prepare('UPDATE results SET final_answers_json = ?, correct_count = ?, possible_count = ?, flags_json = ?, updated_at = ? WHERE id = ?')
+      .run(JSON.stringify(patch.finalAnswers), patch.correctCount, patch.possibleCount, JSON.stringify(patch.flags), nowIso(), id)
+  }
+
+  setReviewed(id: number, reviewed: boolean): void {
+    this.db.prepare('UPDATE results SET reviewed = ?, updated_at = ? WHERE id = ?').run(reviewed ? 1 : 0, nowIso(), id)
+  }
+
+  /** Insert or replace the teacher's decision for one question. */
+  upsertOverride(resultId: number, override: AnswerOverride): void {
+    this.db
+      .prepare(
+        `INSERT INTO answer_overrides (result_id, question_position, raw_choice, override_choice, note, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT (result_id, question_position) DO UPDATE SET
+           raw_choice = excluded.raw_choice, override_choice = excluded.override_choice,
+           note = excluded.note, created_at = excluded.created_at`
+      )
+      .run(resultId, override.q, override.rawChoice, override.overrideChoice, override.note, nowIso())
+  }
+
+  deleteOverride(resultId: number, q: number): boolean {
+    return this.db.prepare('DELETE FROM answer_overrides WHERE result_id = ? AND question_position = ?').run(resultId, q).changes > 0
+  }
+
+  /** Delete one result (overrides cascade) and unlink the page that produced it. */
+  delete(id: number): boolean {
+    const run = this.db.transaction((): boolean => {
+      this.db.prepare('UPDATE scan_pages SET result_id = NULL WHERE result_id = ?').run(id)
+      return this.db.prepare('DELETE FROM results WHERE id = ?').run(id).changes > 0
+    })
+    return run()
   }
 
   insert(input: ResultInsert): GradeResult {

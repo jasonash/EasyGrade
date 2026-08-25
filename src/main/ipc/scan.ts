@@ -1,6 +1,6 @@
 import { BrowserWindow, dialog } from 'electron'
 import { IPC } from '@shared/ipc'
-import type { ScanBatch, ScanPage, ScanProgress } from '@shared/types'
+import type { AssignOutcome, AssignPageInput, ResolveConflictInput, ScanBatch, ScanPageDetail, ScanProgress } from '@shared/types'
 import type { Services } from '../services'
 import { SUPPORTED_SCAN_EXTENSIONS } from '../scan/stages/rasterize'
 import { handle } from './handle'
@@ -36,6 +36,10 @@ export function registerScanHandlers(services: Services): void {
   handle<[string[]], ScanBatch>(IPC.scan.importFiles, (paths) => scan.importFiles(paths))
   handle<[], ScanBatch[]>(IPC.scan.listBatches, () => scan.listBatches())
   handle<[number], ScanBatch>(IPC.scan.getBatch, (id) => scan.getBatch(id))
-  handle<[number], ScanPage[]>(IPC.scan.listPages, (id) => scan.listPages(id))
+  handle<[number], ScanPageDetail[]>(IPC.scan.listPages, (id) => scan.listPages(id))
+  handle<[number], ScanPageDetail>(IPC.scan.getPage, (id) => scan.getPage(id))
   handle<[number], void>(IPC.scan.removeBatch, (id) => scan.removeBatch(id))
+  handle<[AssignPageInput], AssignOutcome>(IPC.scan.assignPage, (input) => scan.assignPage(input))
+  handle<[ResolveConflictInput], ScanPageDetail>(IPC.scan.resolveConflict, (input) => scan.resolveConflict(input))
+  handle<[number], ScanPageDetail>(IPC.scan.discardPage, (id) => scan.discardPage(id))
 }
