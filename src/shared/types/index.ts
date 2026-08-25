@@ -16,6 +16,15 @@ export type {
   StudentInput,
   StudentMove,
   StudentUpdate,
+  Test,
+  TestCopyInput,
+  TestCreateInput,
+  TestKeyUpdate,
+  TestStatus,
+  TestSummary,
+  TestUpdateInput,
+  DraftQuestion,
+  StoredQuestion,
   ThemeMode
 } from '../schemas'
 

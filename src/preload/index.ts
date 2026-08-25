@@ -28,6 +28,17 @@ const api: EasyGradeApi = {
     pickImportFile: () => ipcRenderer.invoke(IPC.students.pickImportFile),
     saveTemplate: () => ipcRenderer.invoke(IPC.students.saveTemplate)
   },
+  tests: {
+    list: (sectionId) => ipcRenderer.invoke(IPC.tests.list, sectionId),
+    get: (id) => ipcRenderer.invoke(IPC.tests.get, id),
+    create: (input) => ipcRenderer.invoke(IPC.tests.create, input),
+    update: (input) => ipcRenderer.invoke(IPC.tests.update, input),
+    updateKey: (input) => ipcRenderer.invoke(IPC.tests.updateKey, input),
+    finalize: (id) => ipcRenderer.invoke(IPC.tests.finalize, id),
+    unlock: (id) => ipcRenderer.invoke(IPC.tests.unlock, id),
+    copy: (input) => ipcRenderer.invoke(IPC.tests.copy, input),
+    remove: (id) => ipcRenderer.invoke(IPC.tests.remove, id)
+  },
   settings: {
     get: () => ipcRenderer.invoke(IPC.settings.get),
     set: (patch) => ipcRenderer.invoke(IPC.settings.set, patch)
