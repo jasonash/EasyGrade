@@ -15,26 +15,22 @@ set -euo pipefail
 # Park the support files' icons well outside the window (which is 540x380 in
 # package.json) and let Finder write the positions into .DS_Store.
 position_offscreen() {
-  local volname="$1"
+  local volume="$1"
+  # The volume is mounted -nobrowse (a browsable mount makes macOS add an
+  # .fseventsd folder to the image), so address items by path, not disk name.
   osascript <<APPLESCRIPT || echo "  warning: Finder could not reposition icons (positions left as built)" >&2
 tell application "Finder"
-  -- Finder registers a freshly attached volume a moment after hdiutil returns.
-  repeat 20 times
-    if exists disk "$volname" then exit repeat
-    delay 0.5
+  set root to POSIX file "$volume" as alias
+  open root
+  delay 1
+  repeat with n in {".background.tiff", ".VolumeIcon.icns"}
+    try
+      set position of item (POSIX file ("$volume/" & n) as alias) to {1400, 900}
+    end try
   end repeat
-  tell disk "$volname"
-    open
-    delay 1
-    repeat with n in {".background.tiff", ".VolumeIcon.icns"}
-      try
-        set position of item n to {1400, 900}
-      end try
-    end repeat
-    update every item
-    delay 1
-    close
-  end tell
+  update every item of root
+  delay 1
+  close window of root
 end tell
 APPLESCRIPT
   echo "  positioned support icons off-screen"
@@ -47,15 +43,14 @@ for dmg in "$@"; do
   echo "Hiding support files in $dmg"
   hdiutil convert -quiet -format UDRW -o "$rw" "$dmg"
   # hdiutil prints tab-separated "device<tab>type<tab>mount point"; the mount point may contain spaces.
-  # Browsable mount (no -nobrowse) so Finder can script the volume below.
-  attached="$(hdiutil attach -noautoopen -readwrite "$rw")"
+  attached="$(hdiutil attach -nobrowse -noautoopen -readwrite "$rw")"
   device="$(printf '%s\n' "$attached" | awk -F'\t' '$3 ~ /^\/Volumes\// {print $1; exit}' | sed 's/[[:space:]]*$//')"
   volume="$(printf '%s\n' "$attached" | awk -F'\t' '$3 ~ /^\/Volumes\// {print $3; exit}' | sed 's/[[:space:]]*$//')"
   if [ -z "$device" ] || [ -z "$volume" ]; then
     echo "Could not mount $rw" >&2
     exit 1
   fi
-  position_offscreen "$(basename "$volume")"
+  position_offscreen "$volume"
   shopt -s dotglob nullglob
   for f in "$volume"/.*; do
     name="$(basename "$f")"
