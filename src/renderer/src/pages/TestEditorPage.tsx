@@ -6,6 +6,7 @@ import AddIcon from '@mui/icons-material/Add'
 import LockIcon from '@mui/icons-material/Lock'
 import LockOpenIcon from '@mui/icons-material/LockOpen'
 import PrintIcon from '@mui/icons-material/Print'
+import AssessmentIcon from '@mui/icons-material/Assessment'
 import type { Test } from '@shared/types'
 import { MAX_INSTRUCTIONS_CHARS, MAX_QUESTIONS, MAX_TITLE_CHARS, measureTest } from '@shared/layout'
 import { formatQrPayload } from '@shared/codes'
@@ -44,6 +45,7 @@ function blankQuestion(): EditorQuestion {
 export function TestEditorPage(): JSX.Element {
   const testId = useUiStore((s) => s.selectedTestId)
   const closeEditor = useUiStore((s) => s.closeEditor)
+  const openTestResults = useUiStore((s) => s.openTestResults)
   const toast = useUiStore((s) => s.toast)
   const { get, update, updateKey, finalize, unlock, load: reloadTests } = useTestsStore()
 
@@ -230,6 +232,11 @@ export function TestEditorPage(): JSX.Element {
             </span>
           </Tooltip>
         )}
+        {readOnly ? (
+          <Button variant="outlined" startIcon={<AssessmentIcon />} onClick={() => openTestResults(test.id)}>
+            Results{test.resultCount > 0 ? ` (${test.resultCount})` : ''}
+          </Button>
+        ) : null}
         <Tooltip title={readOnly ? 'Save or print answer sheets' : 'Finalize the test to print sheets'}>
           <span>
             <Button variant="outlined" startIcon={<PrintIcon />} disabled={!readOnly || busy} onClick={() => setPrintOpen(true)}>

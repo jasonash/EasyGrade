@@ -12,6 +12,9 @@ import { TestsPage } from '@/pages/TestsPage'
 import { TestEditorPage } from '@/pages/TestEditorPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { GradingPage } from '@/pages/GradingPage'
+import { BatchReviewPage } from '@/pages/BatchReviewPage'
+import { TestResultsPage } from '@/pages/TestResultsPage'
+import { StudentResultsPage } from '@/pages/StudentResultsPage'
 
 export function App(): JSX.Element {
   const page = useUiStore((s) => s.page)
@@ -33,6 +36,9 @@ export function App(): JSX.Element {
         {page === 'tests' ? <TestsPage /> : null}
         {page === 'test-editor' ? <TestEditorPage /> : null}
         {page === 'grading' ? <GradingPage /> : null}
+        {page === 'batch-review' ? <BatchReviewPage /> : null}
+        {page === 'test-results' ? <TestResultsPage /> : null}
+        {page === 'student-results' ? <StudentResultsPage /> : null}
         {page === 'settings' ? <SettingsPage /> : null}
       </AppShell>
       <Toasts />

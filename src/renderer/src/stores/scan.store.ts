@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ScanBatch, ScanPage, ScanProgress } from '@shared/types'
+import type { AssignOutcome, AssignPageInput, ResolveConflictInput, ScanBatch, ScanPageDetail, ScanProgress } from '@shared/types'
 import { api, unwrap } from '@/api'
 
 interface ScanState {
@@ -10,13 +10,23 @@ interface ScanState {
   load: () => Promise<void>
   /** Open the picker; resolves the finished batch, or null when the picker was cancelled. */
   pickAndImport: () => Promise<ScanBatch | null>
-  listPages: (batchId: number) => Promise<ScanPage[]>
+  getBatch: (batchId: number) => Promise<ScanBatch>
+  listPages: (batchId: number) => Promise<ScanPageDetail[]>
+  getPage: (pageId: number) => Promise<ScanPageDetail>
   removeBatch: (batchId: number) => Promise<void>
+  assignPage: (input: AssignPageInput) => Promise<AssignOutcome>
+  resolveConflict: (input: ResolveConflictInput) => Promise<ScanPageDetail>
+  discardPage: (pageId: number) => Promise<ScanPageDetail>
   /** Wire the progress channel once; returns the unsubscribe function. */
   subscribe: () => () => void
 }
 
-export const useScanStore = create<ScanState>((set) => ({
+/** Pages needing a teacher's attention across every batch (shown on the Grading nav item). */
+export function attentionCount(batches: ScanBatch[]): number {
+  return batches.reduce((sum, b) => sum + b.counts.needs_assignment + b.counts.unreadable, 0)
+}
+
+export const useScanStore = create<ScanState>((set, get) => ({
   batches: [],
   loading: false,
   importing: false,
@@ -35,16 +45,33 @@ export const useScanStore = create<ScanState>((set) => ({
     set({ importing: true, progress: null })
     try {
       const batch = await unwrap(api.scan.importFiles(paths))
-      await useScanStore.getState().load()
+      await get().load()
       return batch
     } finally {
       set({ importing: false })
     }
   },
+  getBatch: (batchId) => unwrap(api.scan.getBatch(batchId)),
   listPages: (batchId) => unwrap(api.scan.listPages(batchId)),
+  getPage: (pageId) => unwrap(api.scan.getPage(pageId)),
   removeBatch: async (batchId) => {
     await unwrap(api.scan.removeBatch(batchId))
-    await useScanStore.getState().load()
+    await get().load()
+  },
+  assignPage: async (input) => {
+    const outcome = await unwrap(api.scan.assignPage(input))
+    if (outcome.status === 'assigned') await get().load()
+    return outcome
+  },
+  resolveConflict: async (input) => {
+    const page = await unwrap(api.scan.resolveConflict(input))
+    await get().load()
+    return page
+  },
+  discardPage: async (pageId) => {
+    const page = await unwrap(api.scan.discardPage(pageId))
+    await get().load()
+    return page
   },
   subscribe: () => api.scan.onProgress((progress) => set({ progress }))
 }))

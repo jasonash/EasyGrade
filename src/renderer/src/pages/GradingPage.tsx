@@ -8,7 +8,6 @@ import {
   IconButton,
   LinearProgress,
   Paper,
-  Stack,
   Table,
   TableBody,
   TableCell,
@@ -19,7 +18,7 @@ import {
 } from '@mui/material'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
-import type { BucketCounts, PageBucket, ScanBatch } from '@shared/types'
+import type { ScanBatch } from '@shared/types'
 import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
@@ -27,6 +26,7 @@ import { useScanStore } from '@/stores/scan.store'
 import { useUiStore } from '@/stores/ui.store'
 import { describeError } from '@/lib/errors'
 import { formatShortDate } from '@/lib/format'
+import { BucketChips, describeCounts } from '@/components/grading/BucketChips'
 
 /**
  * Grading landing page: import scans, watch the batch process, and see how
@@ -42,6 +42,7 @@ export function GradingPage(): JSX.Element {
   const removeBatch = useScanStore((s) => s.removeBatch)
   const subscribe = useScanStore((s) => s.subscribe)
   const toast = useUiStore((s) => s.toast)
+  const openBatch = useUiStore((s) => s.openBatch)
   const [pendingDelete, setPendingDelete] = useState<ScanBatch | null>(null)
   const [deleting, setDeleting] = useState(false)
 
@@ -76,7 +77,7 @@ export function GradingPage(): JSX.Element {
     <>
       <PageHeader
         title="Grading"
-        subtitle="Import scanned answer sheets as PDFs or photos"
+        subtitle="Import scanned answer sheets as PDFs or photos, then open a batch to review pages"
         actions={
           <Button variant="contained" startIcon={<UploadFileIcon />} onClick={onImport} disabled={importing}>
             Import scans...
@@ -132,7 +133,7 @@ export function GradingPage(): JSX.Element {
             </TableHead>
             <TableBody>
               {batches.map((batch) => (
-                <TableRow key={batch.id} hover>
+                <TableRow key={batch.id} hover onClick={() => openBatch(batch.id)} sx={{ cursor: 'pointer' }}>
                   <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatShortDate(batch.importedAt)}</TableCell>
                   <TableCell sx={{ maxWidth: 360 }}>
                     <Typography variant="body2" noWrap title={batch.sourceDescription}>
@@ -155,7 +156,14 @@ export function GradingPage(): JSX.Element {
                   <TableCell padding="checkbox">
                     <Tooltip title="Delete batch">
                       <span>
-                        <IconButton size="small" onClick={() => setPendingDelete(batch)} disabled={importing}>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setPendingDelete(batch)
+                          }}
+                          disabled={importing}
+                        >
                           <DeleteOutlineIcon fontSize="small" />
                         </IconButton>
                       </span>
@@ -187,31 +195,6 @@ export function GradingPage(): JSX.Element {
       />
     </>
   )
-}
-
-const BUCKET_LABELS: { key: PageBucket; label: string; color: 'success' | 'warning' | 'error' | 'default' }[] = [
-  { key: 'graded', label: 'graded', color: 'success' },
-  { key: 'needs_assignment', label: 'need assignment', color: 'warning' },
-  { key: 'unreadable', label: 'unreadable', color: 'error' },
-  { key: 'not_a_sheet', label: 'not a sheet', color: 'default' }
-]
-
-function BucketChips({ counts }: { counts: BucketCounts }): JSX.Element {
-  const shown = BUCKET_LABELS.filter((b) => counts[b.key] > 0)
-  if (shown.length === 0) return <Typography variant="body2" color="text.secondary">No pages</Typography>
-  return (
-    <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-      {shown.map((b) => (
-        <Chip key={b.key} size="small" color={b.color} variant={b.color === 'default' ? 'outlined' : 'filled'} label={`${counts[b.key]} ${b.label}`} />
-      ))}
-    </Stack>
-  )
-}
-
-function describeCounts(counts: BucketCounts): string {
-  return BUCKET_LABELS.filter((b) => counts[b.key] > 0)
-    .map((b) => `${counts[b.key]} ${b.label}`)
-    .join(', ')
 }
 
 function progressLabel(progress: ReturnType<typeof useScanStore.getState>['progress']): string {

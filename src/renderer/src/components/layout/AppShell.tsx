@@ -21,6 +21,7 @@ import DocumentScannerIcon from '@mui/icons-material/DocumentScanner'
 import SettingsIcon from '@mui/icons-material/Settings'
 import { useUiStore, type Page } from '@/stores/ui.store'
 import { useSectionsStore } from '@/stores/sections.store'
+import { attentionCount, useScanStore } from '@/stores/scan.store'
 import { ALL_YEARS, useSchoolYearFilter } from '@/lib/schoolYear'
 import { describeError } from '@/lib/errors'
 
@@ -40,8 +41,12 @@ const NAV_ITEMS: NavItem[] = [
 ]
 
 /** Pages that highlight a given nav item. */
-function isNavActive(item: Page, page: Page, editorReturn: 'tests' | 'section-detail'): boolean {
-  const effective = page === 'test-editor' ? editorReturn : page
+function isNavActive(item: Page, page: Page, editorReturn: 'tests' | 'section-detail', resultsReturn: Page): boolean {
+  let effective: Page = page
+  if (page === 'test-editor') effective = editorReturn
+  else if (page === 'batch-review') effective = 'grading'
+  else if (page === 'test-results') effective = resultsReturn === 'section-detail' || resultsReturn === 'student-results' ? 'section-detail' : 'tests'
+  else if (page === 'student-results') effective = 'section-detail'
   if (item === 'sections') return effective === 'sections' || effective === 'section-detail'
   return item === effective
 }
@@ -50,14 +55,18 @@ export function AppShell({ children }: { children: ReactNode }): JSX.Element {
   const page = useUiStore((s) => s.page)
   const navigate = useUiStore((s) => s.navigate)
   const editorReturn = useUiStore((s) => s.editorReturnPage)
+  const resultsReturn = useUiStore((s) => s.resultsReturnPage)
   const toast = useUiStore((s) => s.toast)
   const loadSections = useSectionsStore((s) => s.load)
+  const loadBatches = useScanStore((s) => s.load)
+  const attention = useScanStore((s) => attentionCount(s.batches))
   const { year, years, setYear } = useSchoolYearFilter()
 
   // Sections feed the school-year filter, so load them once at startup.
   useEffect(() => {
     void loadSections().catch((err: unknown) => toast('error', describeError(err)))
-  }, [loadSections, toast])
+    void loadBatches().catch(() => undefined)
+  }, [loadSections, loadBatches, toast])
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
@@ -120,13 +129,13 @@ export function AppShell({ children }: { children: ReactNode }): JSX.Element {
             {NAV_ITEMS.map((item) => (
               <ListItemButton
                 key={item.page}
-                selected={isNavActive(item.page, page, editorReturn)}
+                selected={isNavActive(item.page, page, editorReturn, resultsReturn)}
                 onClick={() => navigate(item.page)}
                 sx={{ borderRadius: 1, mb: 0.5 }}
               >
                 <ListItemIcon sx={{ minWidth: 36 }}>
-                  {item.badge ? (
-                    <Badge color="warning" badgeContent={item.badge}>
+                  {item.page === 'grading' && attention > 0 ? (
+                    <Badge color="warning" badgeContent={attention} max={99}>
                       {item.icon}
                     </Badge>
                   ) : (

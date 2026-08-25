@@ -49,6 +49,8 @@ interface Props {
   onClose: () => void
   /** Called after a run was recorded (save or print) so lists can refresh. */
   onPrinted?: (outcome: PrintOutcome) => void
+  /** Start in Selected mode with these students checked (make-up sheets from the Results view). */
+  initialStudentIds?: number[]
 }
 
 type Mode = 'all' | 'selected'
@@ -58,7 +60,7 @@ function todayLabel(): string {
   return new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-export function PrintDialog({ open, test, onClose, onPrinted }: Props): JSX.Element {
+export function PrintDialog({ open, test, onClose, onPrinted, initialStudentIds }: Props): JSX.Element {
   const defaultBlankCopies = useSettingsStore((s) => s.settings.defaultBlankCopies)
   const toast = useUiStore((s) => s.toast)
 
@@ -74,11 +76,14 @@ export function PrintDialog({ open, test, onClose, onPrinted }: Props): JSX.Elem
   const testId = test?.id ?? null
   const sectionId = test?.sectionId ?? null
 
+  const initialKey = initialStudentIds ? initialStudentIds.join(',') : null
+
   // Reset the form and load the roster (including inactive students for make-ups) each time the dialog opens.
   useEffect(() => {
     if (!open || sectionId === null) return
     let cancelled = false
-    setMode('all')
+    const preselected = initialKey ? initialKey.split(',').map(Number) : null
+    setMode(preselected ? 'selected' : 'all')
     setBlankCount(String(defaultBlankCopies))
     setDateLabel(todayLabel())
     setError(null)
@@ -88,7 +93,7 @@ export function PrintDialog({ open, test, onClose, onPrinted }: Props): JSX.Elem
       .then((list) => {
         if (cancelled) return
         setStudents(list)
-        setSelected(new Set(list.filter((s) => s.active).map((s) => s.id)))
+        setSelected(new Set(preselected ?? list.filter((s) => s.active).map((s) => s.id)))
       })
       .catch((err: unknown) => {
         if (!cancelled) setError(describeError(err))
@@ -99,7 +104,7 @@ export function PrintDialog({ open, test, onClose, onPrinted }: Props): JSX.Elem
     return () => {
       cancelled = true
     }
-  }, [open, sectionId, defaultBlankCopies])
+  }, [open, sectionId, defaultBlankCopies, initialKey])
 
   const active = useMemo(() => students.filter((s) => s.active), [students])
   const blank = Number.parseInt(blankCount, 10)

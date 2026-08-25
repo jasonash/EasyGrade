@@ -45,6 +45,7 @@ export function RosterTab({ section }: Props): JSX.Element {
   const store = useStudentsStore
   const sections = useSectionsStore((s) => s.sections)
   const toast = useUiStore((s) => s.toast)
+  const openStudentResults = useUiStore((s) => s.openStudentResults)
 
   const [studentDialog, setStudentDialog] = useState<{ open: boolean; student: Student | null }>({
     open: false,
@@ -257,6 +258,14 @@ export function RosterTab({ section }: Props): JSX.Element {
       </Stack>
 
       <Menu anchorEl={menu?.el} open={Boolean(menu)} onClose={closeMenu}>
+        <MenuItem
+          onClick={() => {
+            if (menu) openStudentResults(menu.student.id)
+            closeMenu()
+          }}
+        >
+          Results{menu && menu.student.resultCount > 0 ? ` (${menu.student.resultCount})` : ''}
+        </MenuItem>
         <MenuItem
           onClick={() => {
             if (menu) setStudentDialog({ open: true, student: menu.student })
