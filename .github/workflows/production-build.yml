@@ -92,6 +92,9 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
+      - name: Hide DMG support files
+        run: scripts/hide-dmg-files.sh release/*.dmg
+
       - name: Notarize macOS App
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -175,6 +178,9 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Hide DMG support files
+        run: scripts/hide-dmg-files.sh release/*.dmg
 
       - name: Notarize macOS App
         env:
