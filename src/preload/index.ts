@@ -1,5 +1,6 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { IPC, type EasyGradeApi } from '@shared/ipc'
+import type { ScanProgress } from '@shared/types'
 
 const api: EasyGradeApi = {
   app: {
@@ -44,6 +45,21 @@ const api: EasyGradeApi = {
     savePdf: (input) => ipcRenderer.invoke(IPC.print.savePdf, input),
     printPdf: (input) => ipcRenderer.invoke(IPC.print.printPdf, input),
     listRuns: (testId) => ipcRenderer.invoke(IPC.print.listRuns, testId)
+  },
+  scan: {
+    pickFiles: () => ipcRenderer.invoke(IPC.scan.pickFiles),
+    importFiles: (paths) => ipcRenderer.invoke(IPC.scan.importFiles, paths),
+    listBatches: () => ipcRenderer.invoke(IPC.scan.listBatches),
+    getBatch: (batchId) => ipcRenderer.invoke(IPC.scan.getBatch, batchId),
+    listPages: (batchId) => ipcRenderer.invoke(IPC.scan.listPages, batchId),
+    removeBatch: (batchId) => ipcRenderer.invoke(IPC.scan.removeBatch, batchId),
+    onProgress: (listener) => {
+      const wrapped = (_event: IpcRendererEvent, progress: ScanProgress): void => listener(progress)
+      ipcRenderer.on(IPC.scan.progress, wrapped)
+      return () => {
+        ipcRenderer.removeListener(IPC.scan.progress, wrapped)
+      }
+    }
   },
   settings: {
     get: () => ipcRenderer.invoke(IPC.settings.get),

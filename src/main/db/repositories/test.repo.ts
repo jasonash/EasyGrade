@@ -116,6 +116,19 @@ export class TestRepository {
     return rows.map(toSummary)
   }
 
+  /** Finalized tests with their stored layouts (what a scanned QR can refer to). */
+  listFinalized(): Test[] {
+    const rows = this.db.prepare(`${SELECT} WHERE t.status = 'finalized' ORDER BY t.id`).all() as TestRow[]
+    return rows.map((row) => ({
+      ...toSummary(row),
+      instructions: row.instructions ?? '',
+      layout: parseLayout(row.layout_json),
+      finalizedAt: row.finalized_at,
+      questions: this.questionsFor(row.id),
+      createdAt: row.created_at
+    }))
+  }
+
   findById(id: number): Test | null {
     const row = this.db.prepare(`${SELECT} WHERE t.id = ?`).get(id) as TestRow | undefined
     if (!row) return null

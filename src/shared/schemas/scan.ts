@@ -117,3 +117,80 @@ export interface ScanPageResult {
   /** Milliseconds spent on this page. */
   elapsedMs: number
 }
+
+/** Persisted shapes (scan_batches, scan_pages, results) as the renderer sees them. */
+
+export const BatchStatusSchema = z.enum(['pending', 'processing', 'complete', 'error'])
+export type BatchStatus = z.infer<typeof BatchStatusSchema>
+
+export type BucketCounts = Record<PageBucket, number>
+
+export interface ScanBatch {
+  id: number
+  sourceDescription: string
+  pageCount: number
+  status: BatchStatus
+  importedAt: string
+  completedAt: string | null
+  counts: BucketCounts
+  /** Files that could not be read at all, with the reason. */
+  errors: string[]
+}
+
+export interface ScanPage {
+  id: number
+  batchId: number
+  pageIndex: number
+  /** Relative to the scans directory. */
+  imagePath: string
+  thumbPath: string | null
+  status: 'pending' | 'processed' | 'error'
+  bucket: PageBucket | null
+  reason: PageReason | null
+  rotation: number | null
+  alignmentQuality: AlignmentQuality | null
+  alignmentResidual: number | null
+  qrPayload: string | null
+  testId: number | null
+  studentId: number | null
+  assignedBy: 'qr' | 'teacher' | null
+  detected: DetectedRow[] | null
+  crops: Record<string, string>
+  resultId: number | null
+  processedAt: string | null
+}
+
+export const QuestionFlagSchema = z.object({
+  q: z.number().int().min(0),
+  kind: z.enum(['blank', 'multiple', 'ambiguous', 'low_confidence'])
+})
+export type QuestionFlag = z.infer<typeof QuestionFlagSchema>
+
+export interface GradeResult {
+  id: number
+  testId: number
+  studentId: number
+  scanPageId: number | null
+  layoutVersion: number
+  rawAnswers: (number | null)[]
+  finalAnswers: (number | null)[]
+  correctCount: number
+  possibleCount: number
+  flags: QuestionFlag[]
+  reviewed: boolean
+  gradedAt: string
+  updatedAt: string
+}
+
+/** Progress event streamed to the renderer while a batch imports. */
+export interface ScanProgress {
+  batchId: number
+  phase: 'starting' | 'processing' | 'complete' | 'error'
+  pagesTotal: number
+  pagesDone: number
+  currentFile: string | null
+  counts: BucketCounts
+  message: string | null
+}
+
+export const EMPTY_COUNTS: BucketCounts = { graded: 0, needs_assignment: 0, unreadable: 0, not_a_sheet: 0, discarded: 0 }
