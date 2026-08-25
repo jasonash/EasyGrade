@@ -1,6 +1,6 @@
 import { BrowserWindow, dialog } from 'electron'
 import { IPC } from '@shared/ipc'
-import type { AssignOutcome, AssignPageInput, ResolveConflictInput, ScanBatch, ScanPageDetail, ScanProgress } from '@shared/types'
+import type { AssignOutcome, AssignPageInput, PurgeOutcome, PurgePreview, ResolveConflictInput, ScanBatch, ScanPageDetail, ScanProgress } from '@shared/types'
 import type { Services } from '../services'
 import { SUPPORTED_SCAN_EXTENSIONS } from '../scan/stages/rasterize'
 import { handle } from './handle'
@@ -42,4 +42,6 @@ export function registerScanHandlers(services: Services): void {
   handle<[AssignPageInput], AssignOutcome>(IPC.scan.assignPage, (input) => scan.assignPage(input))
   handle<[ResolveConflictInput], ScanPageDetail>(IPC.scan.resolveConflict, (input) => scan.resolveConflict(input))
   handle<[number], ScanPageDetail>(IPC.scan.discardPage, (id) => scan.discardPage(id))
+  handle<[], PurgePreview>(IPC.scan.purgePreview, () => services.retention.preview())
+  handle<[], PurgeOutcome>(IPC.scan.purge, () => services.retention.purge())
 }

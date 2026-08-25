@@ -57,6 +57,8 @@ const api: EasyGradeApi = {
     assignPage: (input) => ipcRenderer.invoke(IPC.scan.assignPage, input),
     resolveConflict: (input) => ipcRenderer.invoke(IPC.scan.resolveConflict, input),
     discardPage: (pageId) => ipcRenderer.invoke(IPC.scan.discardPage, pageId),
+    purgePreview: () => ipcRenderer.invoke(IPC.scan.purgePreview),
+    purge: () => ipcRenderer.invoke(IPC.scan.purge),
     onProgress: (listener) => {
       const wrapped = (_event: IpcRendererEvent, progress: ScanProgress): void => listener(progress)
       ipcRenderer.on(IPC.scan.progress, wrapped)
@@ -72,6 +74,16 @@ const api: EasyGradeApi = {
     overrideAnswer: (input) => ipcRenderer.invoke(IPC.grading.overrideAnswer, input),
     setReviewed: (input) => ipcRenderer.invoke(IPC.grading.setReviewed, input),
     regradeTest: (testId) => ipcRenderer.invoke(IPC.grading.regradeTest, testId)
+  },
+  export: {
+    testCsv: (testId) => ipcRenderer.invoke(IPC.export.testCsv, testId),
+    sectionCsv: (sectionId) => ipcRenderer.invoke(IPC.export.sectionCsv, sectionId)
+  },
+  backup: {
+    chooseDir: () => ipcRenderer.invoke(IPC.backup.chooseDir),
+    status: () => ipcRenderer.invoke(IPC.backup.status),
+    create: () => ipcRenderer.invoke(IPC.backup.create),
+    restore: () => ipcRenderer.invoke(IPC.backup.restore)
   },
   settings: {
     get: () => ipcRenderer.invoke(IPC.settings.get),

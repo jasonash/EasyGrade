@@ -135,6 +135,8 @@ export interface ScanBatch {
   counts: BucketCounts
   /** Files that could not be read at all, with the reason. */
   errors: string[]
+  /** Set when the retention purge removed this batch's page images. Results are untouched. */
+  purgedAt: string | null
 }
 
 export interface ScanPage {

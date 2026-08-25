@@ -19,12 +19,14 @@ import {
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import DownloadIcon from '@mui/icons-material/Download'
 import EditIcon from '@mui/icons-material/Edit'
 import PrintIcon from '@mui/icons-material/Print'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import type { TestResults } from '@shared/types'
 import { useUiStore } from '@/stores/ui.store'
 import { useTestsStore } from '@/stores/tests.store'
+import { api, unwrap } from '@/api'
 import { gradingApi } from '@/lib/grading-api'
 import { describeError } from '@/lib/errors'
 import { choiceLetter, flagLabel, formatPercent, percentOf } from '@/lib/grading'
@@ -65,6 +67,17 @@ export function TestResultsPage(): JSX.Element {
     void load().catch((err: unknown) => toast('error', describeError(err)))
   }
 
+  const exportCsv = (): void => {
+    if (testId === null) return
+    setBusy(true)
+    void unwrap(api.export.testCsv(testId))
+      .then((outcome) => {
+        if (outcome) toast('success', `Saved ${outcome.rows} rows to ${outcome.path}`)
+      })
+      .catch((err: unknown) => toast('error', describeError(err)))
+      .finally(() => setBusy(false))
+  }
+
   const regrade = (): void => {
     if (testId === null) return
     setBusy(true)
@@ -99,6 +112,9 @@ export function TestResultsPage(): JSX.Element {
             {test.sectionName} · Results · layout v{test.layoutVersion}
           </Typography>
         </Box>
+        <Button variant="outlined" startIcon={<DownloadIcon />} onClick={exportCsv} disabled={busy || rows.length === 0}>
+          Export CSV
+        </Button>
         <Tooltip title="Rescore every result against the current answer key. Key changes already do this automatically.">
           <span>
             <Button variant="outlined" startIcon={<RefreshIcon />} onClick={regrade} disabled={busy || rows.length === 0}>

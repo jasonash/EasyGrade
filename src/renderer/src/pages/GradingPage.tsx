@@ -139,6 +139,11 @@ export function GradingPage(): JSX.Element {
                     <Typography variant="body2" noWrap title={batch.sourceDescription}>
                       {batch.sourceDescription}
                     </Typography>
+                    {batch.purgedAt ? (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                        Page images purged {formatShortDate(batch.purgedAt)}
+                      </Typography>
+                    ) : null}
                     {batch.errors.length > 0 ? (
                       <Typography variant="caption" color="warning.main" noWrap title={batch.errors.join('\n')}>
                         {batch.errors.length} file problem{batch.errors.length === 1 ? '' : 's'}

@@ -22,13 +22,15 @@ import { ROSTER_TEMPLATE_FILENAME } from '@shared/roster-import'
 import type { Services } from '../services'
 import { AppError } from '../services/errors'
 import { handle } from './handle'
+import { registerBackupHandlers, type BackupHooks } from './backup'
+import { registerExportHandlers } from './export'
 import { registerGradingHandlers } from './grading'
 import { registerPrintHandlers } from './print'
 import { registerScanHandlers } from './scan'
 
 const MAX_IMPORT_BYTES = 1_000_000
 
-export function registerIpcHandlers(services: Services): void {
+export function registerIpcHandlers(services: Services, backupHooks: BackupHooks): void {
   handle<[], AppInfo>(IPC.app.info, () => ({
     version: app.getVersion(),
     platform: process.platform,
@@ -83,6 +85,8 @@ export function registerIpcHandlers(services: Services): void {
   registerPrintHandlers(services)
   registerScanHandlers(services)
   registerGradingHandlers(services)
+  registerExportHandlers(services)
+  registerBackupHandlers(services, backupHooks)
 
   handle<[], ReturnType<Services['settings']['get']>>(IPC.settings.get, () => services.settings.get())
   handle<[SettingsPatch], ReturnType<Services['settings']['set']>>(IPC.settings.set, (patch) =>
