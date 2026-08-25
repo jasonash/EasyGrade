@@ -8,6 +8,7 @@ import LockOpenIcon from '@mui/icons-material/LockOpen'
 import PrintIcon from '@mui/icons-material/Print'
 import type { Test } from '@shared/types'
 import { MAX_INSTRUCTIONS_CHARS, MAX_QUESTIONS, MAX_TITLE_CHARS, measureTest } from '@shared/layout'
+import { formatQrPayload } from '@shared/codes'
 import { useUiStore } from '@/stores/ui.store'
 import { useTestsStore } from '@/stores/tests.store'
 import { describeError } from '@/lib/errors'
@@ -15,6 +16,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { FitMeter } from '@/components/editor/FitMeter'
 import { QuestionCard, type EditorQuestion } from '@/components/editor/QuestionCard'
 import { SheetPreview } from '@/components/editor/SheetPreview'
+import { PrintDialog } from '@/components/print/PrintDialog'
 
 interface EditorState {
   title: string
@@ -43,13 +45,14 @@ export function TestEditorPage(): JSX.Element {
   const testId = useUiStore((s) => s.selectedTestId)
   const closeEditor = useUiStore((s) => s.closeEditor)
   const toast = useUiStore((s) => s.toast)
-  const { get, update, updateKey, finalize, unlock } = useTestsStore()
+  const { get, update, updateKey, finalize, unlock, load: reloadTests } = useTestsStore()
 
   const [test, setTest] = useState<Test | null>(null)
   const [state, setState] = useState<EditorState | null>(null)
   const [saveState, setSaveState] = useState<SaveState>('saved')
   const [busy, setBusy] = useState(false)
   const [unlockOpen, setUnlockOpen] = useState(false)
+  const [printOpen, setPrintOpen] = useState(false)
 
   const stateRef = useRef<EditorState | null>(null)
   const dirtyRef = useRef(false)
@@ -227,9 +230,9 @@ export function TestEditorPage(): JSX.Element {
             </span>
           </Tooltip>
         )}
-        <Tooltip title="Printing arrives in Phase 4">
+        <Tooltip title={readOnly ? 'Save or print answer sheets' : 'Finalize the test to print sheets'}>
           <span>
-            <Button variant="outlined" startIcon={<PrintIcon />} disabled>
+            <Button variant="outlined" startIcon={<PrintIcon />} disabled={!readOnly || busy} onClick={() => setPrintOpen(true)}>
               Print
             </Button>
           </span>
@@ -310,7 +313,7 @@ export function TestEditorPage(): JSX.Element {
           <SheetPreview
             title={state.title}
             sectionName={test.sectionName}
-            code={`EG1 ${test.code}`}
+            code={formatQrPayload({ testCode: test.code, studentCode: null, layoutVersion: test.layoutVersion })}
             measure={measure}
             choiceCounts={state.questions.map((q) => q.choices.length)}
           />
@@ -319,6 +322,16 @@ export function TestEditorPage(): JSX.Element {
           </Typography>
         </Box>
       </Box>
+
+      <PrintDialog
+        open={printOpen}
+        test={test}
+        onClose={() => setPrintOpen(false)}
+        onPrinted={(outcome) => {
+          if (outcome.printRun) setTest((prev) => (prev ? { ...prev, lastPrintedAt: outcome.printRun?.printedAt ?? prev.lastPrintedAt } : prev))
+          void reloadTests()
+        }}
+      />
 
       <ConfirmDialog
         open={unlockOpen}
