@@ -13,6 +13,21 @@ const api: EasyGradeApi = {
     remove: (id) => ipcRenderer.invoke(IPC.sections.remove, id),
     schoolYears: () => ipcRenderer.invoke(IPC.sections.schoolYears)
   },
+  students: {
+    listBySection: (sectionId, includeInactive) =>
+      ipcRenderer.invoke(IPC.students.listBySection, sectionId, includeInactive),
+    get: (id) => ipcRenderer.invoke(IPC.students.get, id),
+    create: (input) => ipcRenderer.invoke(IPC.students.create, input),
+    update: (input) => ipcRenderer.invoke(IPC.students.update, input),
+    move: (input) => ipcRenderer.invoke(IPC.students.move, input),
+    deactivate: (id) => ipcRenderer.invoke(IPC.students.deactivate, id),
+    reactivate: (id) => ipcRenderer.invoke(IPC.students.reactivate, id),
+    remove: (id) => ipcRenderer.invoke(IPC.students.remove, id),
+    importPreview: (input) => ipcRenderer.invoke(IPC.students.importPreview, input),
+    importCommit: (input) => ipcRenderer.invoke(IPC.students.importCommit, input),
+    pickImportFile: () => ipcRenderer.invoke(IPC.students.pickImportFile),
+    saveTemplate: () => ipcRenderer.invoke(IPC.students.saveTemplate)
+  },
   settings: {
     get: () => ipcRenderer.invoke(IPC.settings.get),
     set: (patch) => ipcRenderer.invoke(IPC.settings.set, patch)

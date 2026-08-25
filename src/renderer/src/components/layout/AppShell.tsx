@@ -1,14 +1,17 @@
 import type { JSX } from 'react'
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import {
   AppBar,
   Badge,
   Box,
   Drawer,
+  FormControl,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  MenuItem,
+  Select,
   Toolbar,
   Typography
 } from '@mui/material'
@@ -17,6 +20,9 @@ import QuizIcon from '@mui/icons-material/Quiz'
 import DocumentScannerIcon from '@mui/icons-material/DocumentScanner'
 import SettingsIcon from '@mui/icons-material/Settings'
 import { useUiStore, type Page } from '@/stores/ui.store'
+import { useSectionsStore } from '@/stores/sections.store'
+import { ALL_YEARS, useSchoolYearFilter } from '@/lib/schoolYear'
+import { describeError } from '@/lib/errors'
 
 const DRAWER_WIDTH = 200
 
@@ -33,9 +39,23 @@ const NAV_ITEMS: NavItem[] = [
   { page: 'grading', label: 'Grading', icon: <DocumentScannerIcon /> }
 ]
 
+/** Pages that highlight a given nav item. */
+function isNavActive(item: Page, page: Page): boolean {
+  if (item === 'sections') return page === 'sections' || page === 'section-detail'
+  return item === page
+}
+
 export function AppShell({ children }: { children: ReactNode }): JSX.Element {
   const page = useUiStore((s) => s.page)
   const navigate = useUiStore((s) => s.navigate)
+  const toast = useUiStore((s) => s.toast)
+  const loadSections = useSectionsStore((s) => s.load)
+  const { year, years, setYear } = useSchoolYearFilter()
+
+  // Sections feed the school-year filter, so load them once at startup.
+  useEffect(() => {
+    void loadSections().catch((err: unknown) => toast('error', describeError(err)))
+  }, [loadSections, toast])
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
@@ -54,6 +74,27 @@ export function AppShell({ children }: { children: ReactNode }): JSX.Element {
           <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.3 }}>
             EasyGrade
           </Typography>
+          <Box sx={{ flexGrow: 1 }} />
+          {years.length > 0 ? (
+            <FormControl size="small" sx={{ minWidth: 140 }}>
+              <Select
+                value={year}
+                displayEmpty
+                inputProps={{ 'aria-label': 'School year filter' }}
+                onChange={(e) => {
+                  void setYear(e.target.value).catch((err: unknown) => toast('error', describeError(err)))
+                }}
+                sx={{ fontSize: 14 }}
+              >
+                <MenuItem value={ALL_YEARS}>All years</MenuItem>
+                {years.map((y) => (
+                  <MenuItem key={y} value={y}>
+                    {y}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          ) : null}
         </Toolbar>
       </AppBar>
 
@@ -77,7 +118,7 @@ export function AppShell({ children }: { children: ReactNode }): JSX.Element {
             {NAV_ITEMS.map((item) => (
               <ListItemButton
                 key={item.page}
-                selected={page === item.page}
+                selected={isNavActive(item.page, page)}
                 onClick={() => navigate(item.page)}
                 sx={{ borderRadius: 1, mb: 0.5 }}
               >
