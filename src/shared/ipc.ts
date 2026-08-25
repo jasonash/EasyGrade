@@ -18,6 +18,7 @@ import type {
   PurgePreview,
   RestoreOutcome,
   ResetOutcome,
+  UpdateState,
   GradeResult,
   OverrideAnswerInput,
   RegradeOutcome,
@@ -154,6 +155,16 @@ export interface EasyGradeApi {
     get: () => Promise<ApiResult<Settings>>
     set: (patch: SettingsPatch) => Promise<ApiResult<Settings>>
   }
+  update: {
+    getState: () => Promise<ApiResult<UpdateState>>
+    /** Ask GitHub Releases for a newer version; resolves once the check settles. */
+    check: () => Promise<ApiResult<UpdateState>>
+    download: () => Promise<ApiResult<UpdateState>>
+    /** Quit and install a downloaded update. */
+    install: () => Promise<ApiResult<void>>
+    /** Subscribe to update state changes; returns an unsubscribe function. */
+    onStatus: (listener: (state: UpdateState) => void) => () => void
+  }
 }
 
 /** Channel names, derived so preload and main cannot drift. */
@@ -236,5 +247,13 @@ export const IPC = {
   settings: {
     get: 'settings:get',
     set: 'settings:set'
+  },
+  update: {
+    getState: 'update:getState',
+    check: 'update:check',
+    download: 'update:download',
+    install: 'update:install',
+    /** Event channel (main to renderer), not an invoke. */
+    status: 'update:status'
   }
 } as const

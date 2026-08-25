@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { IPC, type EasyGradeApi } from '@shared/ipc'
-import type { ScanProgress } from '@shared/types'
+import type { ScanProgress, UpdateState } from '@shared/types'
 
 const api: EasyGradeApi = {
   app: {
@@ -89,6 +89,19 @@ const api: EasyGradeApi = {
   settings: {
     get: () => ipcRenderer.invoke(IPC.settings.get),
     set: (patch) => ipcRenderer.invoke(IPC.settings.set, patch)
+  },
+  update: {
+    getState: () => ipcRenderer.invoke(IPC.update.getState),
+    check: () => ipcRenderer.invoke(IPC.update.check),
+    download: () => ipcRenderer.invoke(IPC.update.download),
+    install: () => ipcRenderer.invoke(IPC.update.install),
+    onStatus: (listener) => {
+      const wrapped = (_event: IpcRendererEvent, state: UpdateState): void => listener(state)
+      ipcRenderer.on(IPC.update.status, wrapped)
+      return () => {
+        ipcRenderer.removeListener(IPC.update.status, wrapped)
+      }
+    }
   }
 }
 

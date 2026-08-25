@@ -27,10 +27,11 @@ import { registerExportHandlers } from './export'
 import { registerGradingHandlers } from './grading'
 import { registerPrintHandlers } from './print'
 import { registerScanHandlers, wireScanProgress } from './scan'
+import { registerUpdateHandlers, wireUpdateStatus } from './update'
 
 const MAX_IMPORT_BYTES = 1_000_000
 
-export { wireScanProgress }
+export { wireScanProgress, registerUpdateHandlers, wireUpdateStatus }
 
 /** Handlers resolve services through the getter on every call so a restore can rebuild them in place. */
 export function registerIpcHandlers(services: () => Services, backupHooks: BackupHooks): void {

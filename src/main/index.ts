@@ -3,14 +3,18 @@ import { hostname } from 'os'
 import { rmSync } from 'fs'
 import { join } from 'path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
+import electronUpdater from 'electron-updater'
+import log from 'electron-log/main'
 import { DataStore } from './data-store'
-import { registerIpcHandlers, wireScanProgress } from './ipc'
+import { registerIpcHandlers, registerUpdateHandlers, wireScanProgress, wireUpdateStatus } from './ipc'
+import { UpdateService } from './services/update.service'
 import { handleScanProtocol, registerScanScheme } from './scan-protocol'
 
 const APP_ID = 'com.jasonash.easygrade'
 const DARK_BACKGROUND = '#14171c'
 
 let store: DataStore | null = null
+let updates: UpdateService | null = null
 let splashWindow: BrowserWindow | null = null
 let splashShownAt = 0
 /** The splash stays up at least this long so it does not flash on fast machines. */
@@ -146,6 +150,22 @@ app.whenReady().then(() => {
   )
   setInterval(() => backupIfDue('daily'), DAILY_BACKUP_CHECK_MS)
 
+  // Automatic updates from GitHub Releases; the service itself decides whether
+  // this build may update (packaged, not a -dev. build). electron-log writes
+  // updater activity to the app's logs folder (~/Library/Logs/EasyGrade on
+  // macOS, %APPDATA%/EasyGrade/logs on Windows) for field diagnosis.
+  const { autoUpdater } = electronUpdater
+  autoUpdater.logger = log
+  updates = new UpdateService({
+    updater: autoUpdater,
+    currentVersion: app.getVersion(),
+    isPackaged: app.isPackaged,
+    log: (message) => log.info(`[updates] ${message}`)
+  })
+  wireUpdateStatus(updates)
+  registerUpdateHandlers(updates)
+  updates.start()
+
   createWindow()
 
   app.on('activate', () => {
@@ -158,6 +178,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('will-quit', () => {
+  updates?.stop()
   cleanTempPdfs()
   backupIfDue('quit')
   store?.close()
