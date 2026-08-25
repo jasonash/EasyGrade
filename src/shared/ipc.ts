@@ -11,6 +11,12 @@ import type {
   PrintRun,
   AssignOutcome,
   AssignPageInput,
+  BackupOutcome,
+  BackupStatus,
+  ExportOutcome,
+  PurgeOutcome,
+  PurgePreview,
+  RestoreOutcome,
   GradeResult,
   OverrideAnswerInput,
   RegradeOutcome,
@@ -110,6 +116,10 @@ export interface EasyGradeApi {
     resolveConflict: (input: ResolveConflictInput) => Promise<ApiResult<ScanPageDetail>>
     /** Move a page to the discarded bucket, deleting its result if it had one. */
     discardPage: (pageId: number) => Promise<ApiResult<ScanPageDetail>>
+    /** What "Purge now" would remove under the current retention setting. */
+    purgePreview: () => Promise<ApiResult<PurgePreview>>
+    /** Delete page images of batches older than the retention setting. Results are kept. */
+    purge: () => Promise<ApiResult<PurgeOutcome>>
     /** Subscribe to progress events; returns an unsubscribe function. */
     onProgress: (listener: (progress: ScanProgress) => void) => () => void
   }
@@ -121,6 +131,21 @@ export interface EasyGradeApi {
     setReviewed: (input: SetReviewedInput) => Promise<ApiResult<GradeResult>>
     /** Rescore every result of a test against its current key and overrides. */
     regradeTest: (testId: number) => Promise<ApiResult<RegradeOutcome>>
+  }
+  export: {
+    /** Save a test's results as CSV via a save dialog. Null when cancelled. */
+    testCsv: (testId: number) => Promise<ApiResult<ExportOutcome | null>>
+    /** Save a section's grade summary (one column per finalized test) as CSV. Null when cancelled. */
+    sectionCsv: (sectionId: number) => Promise<ApiResult<ExportOutcome | null>>
+  }
+  backup: {
+    /** Pick the backup folder; stores it in settings. Null when cancelled. */
+    chooseDir: () => Promise<ApiResult<string | null>>
+    status: () => Promise<ApiResult<BackupStatus>>
+    /** Snapshot the database and mirror the scans into the backup folder now. */
+    create: () => Promise<ApiResult<BackupOutcome>>
+    /** Pick a snapshot, replace the local data with it, and relaunch the app. Null when cancelled. */
+    restore: () => Promise<ApiResult<RestoreOutcome | null>>
   }
   settings: {
     get: () => Promise<ApiResult<Settings>>
@@ -181,6 +206,8 @@ export const IPC = {
     assignPage: 'scan:assignPage',
     resolveConflict: 'scan:resolveConflict',
     discardPage: 'scan:discardPage',
+    purgePreview: 'scan:purgePreview',
+    purge: 'scan:purge',
     /** Event channel (main to renderer), not an invoke. */
     progress: 'scan:progress'
   },
@@ -191,6 +218,16 @@ export const IPC = {
     overrideAnswer: 'grading:overrideAnswer',
     setReviewed: 'grading:setReviewed',
     regradeTest: 'grading:regradeTest'
+  },
+  export: {
+    testCsv: 'export:testCsv',
+    sectionCsv: 'export:sectionCsv'
+  },
+  backup: {
+    chooseDir: 'backup:chooseDir',
+    status: 'backup:status',
+    create: 'backup:create',
+    restore: 'backup:restore'
   },
   settings: {
     get: 'settings:get',

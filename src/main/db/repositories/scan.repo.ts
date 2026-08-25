@@ -21,6 +21,7 @@ interface BatchRow {
   imported_at: string
   completed_at: string | null
   errors_json: string
+  purged_at: string | null
 }
 
 interface PageRow {
@@ -222,8 +223,26 @@ export class ScanRepository {
       importedAt: row.imported_at,
       completedAt: row.completed_at,
       counts: this.countsFor(row.id),
-      errors: parseJson<string[]>(row.errors_json, [])
+      errors: parseJson<string[]>(row.errors_json, []),
+      purgedAt: row.purged_at
     }
+  }
+
+  /** Finished batches imported before the cutoff whose images are still on disk. */
+  listPurgeCandidates(cutoffIso: string): ScanBatch[] {
+    const rows = this.db
+      .prepare(`SELECT * FROM scan_batches WHERE imported_at < ? AND purged_at IS NULL AND status IN ('complete', 'error') ORDER BY imported_at`)
+      .all(cutoffIso) as BatchRow[]
+    return rows.map((row) => this.toBatch(row))
+  }
+
+  /** Record that a batch's images are gone: pages keep their detection and results, lose their image links. */
+  markPurged(batchId: number, at: string): void {
+    const run = this.db.transaction(() => {
+      this.db.prepare('UPDATE scan_batches SET purged_at = ? WHERE id = ?').run(at, batchId)
+      this.db.prepare(`UPDATE scan_pages SET image_path = '', thumb_path = NULL, crops_json = '{}' WHERE batch_id = ?`).run(batchId)
+    })
+    run()
   }
 
   countsFor(batchId: number): BucketCounts {

@@ -6,7 +6,10 @@ import { SectionRepository } from '../db/repositories/section.repo'
 import { SettingsRepository } from '../db/repositories/settings.repo'
 import { StudentRepository } from '../db/repositories/student.repo'
 import { TestRepository } from '../db/repositories/test.repo'
+import { BackupService, type BackupOptions } from './backup.service'
+import { ExportService } from './export.service'
 import { GradingService } from './grading.service'
+import { RetentionService } from './retention.service'
 import { PdfService } from './pdf.service'
 import { ScanService, type ScanServiceOptions } from './scan.service'
 import { PrintService } from './print.service'
@@ -22,10 +25,13 @@ export interface Services {
   print: PrintService
   scan: ScanService
   grading: GradingService
+  exports: ExportService
+  retention: RetentionService
+  backup: BackupService
   settings: SettingsService
 }
 
-export function createServices(db: Db, scanOptions: ScanServiceOptions): Services {
+export function createServices(db: Db, scanOptions: ScanServiceOptions, backupOptions: BackupOptions): Services {
   const sectionRepo = new SectionRepository(db)
   const studentRepo = new StudentRepository(db)
   const testRepo = new TestRepository(db)
@@ -34,6 +40,7 @@ export function createServices(db: Db, scanOptions: ScanServiceOptions): Service
   const grading = new GradingService(resultRepo, testRepo, scanRepo, studentRepo)
   const tests = new TestService(testRepo, sectionRepo)
   tests.onKeyChange((testId) => grading.regradeTest(testId))
+  const settings = new SettingsService(new SettingsRepository(db))
   return {
     sections: new SectionService(sectionRepo),
     students: new StudentService(studentRepo, sectionRepo),
@@ -41,6 +48,9 @@ export function createServices(db: Db, scanOptions: ScanServiceOptions): Service
     print: new PrintService(testRepo, studentRepo, new PrintRunRepository(db), new PdfService()),
     scan: new ScanService(scanRepo, testRepo, studentRepo, resultRepo, grading, scanOptions),
     grading,
-    settings: new SettingsService(new SettingsRepository(db))
+    exports: new ExportService(grading, testRepo, studentRepo, sectionRepo),
+    retention: new RetentionService(scanRepo, settings, scanOptions.scansDir),
+    backup: new BackupService(settings, backupOptions),
+    settings
   }
 }

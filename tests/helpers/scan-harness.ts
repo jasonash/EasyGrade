@@ -16,6 +16,7 @@ import { SectionService } from '../../src/main/services/section.service'
 import { StudentService } from '../../src/main/services/student.service'
 import { TestService } from '../../src/main/services/test.service'
 import type { ScanProgress } from '../../src/shared/schemas'
+import { generateCode } from '../../src/shared/codes'
 import { CLEAN_TEST, fixtureChoices } from '../fixtures/calibration'
 import {
   SYN_KEY,
@@ -102,8 +103,13 @@ export function harness(runner: PipelineRunner, scansDir: string): Harness {
   const db = openDatabase({ path: ':memory:' })
   const sectionRepo = new SectionRepository(db)
   const studentCodes = [SYN_STUDENT_CODE, SYN_OTHER_STUDENT]
-  const studentRepo = new StudentRepository(db, () => studentCodes.shift() ?? 'ZZZZZZ')
-  const testRepo = new TestRepository(db, () => SYN_TEST_CODE)
+  const studentRepo = new StudentRepository(db, () => studentCodes.shift() ?? generateCode())
+  let testCodeUsed = false
+  const testRepo = new TestRepository(db, () => {
+    if (testCodeUsed) return generateCode()
+    testCodeUsed = true
+    return SYN_TEST_CODE
+  })
   const resultRepo = new ResultRepository(db)
   const scanRepo = new ScanRepository(db)
   const sections = new SectionService(sectionRepo)

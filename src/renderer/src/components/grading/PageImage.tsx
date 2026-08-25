@@ -27,6 +27,13 @@ interface Props {
  */
 export function PageImage({ page, layout, answers, answerKey, flagged }: Props): JSX.Element {
   const [zoom, setZoom] = useState(false)
+  if (page.imagePath === '') {
+    return (
+      <Box sx={{ p: 3, borderRadius: 1, border: 1, borderColor: 'divider', borderStyle: 'dashed', textAlign: 'center', color: 'text.secondary', fontSize: 14 }}>
+        The image of this page was removed by the retention purge. The detected answers and the result are still here.
+      </Box>
+    )
+  }
   const src = scanImageUrl(page.imagePath, page.processedAt)
   const overlay = layout && canReadBubbles(page) ? <Overlay layout={layout} answers={answers} answerKey={answerKey} flagged={flagged} /> : null
 
