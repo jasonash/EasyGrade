@@ -9,9 +9,18 @@ import type {
   PrintOutcome,
   PrintRequest,
   PrintRun,
+  AssignOutcome,
+  AssignPageInput,
+  GradeResult,
+  OverrideAnswerInput,
+  RegradeOutcome,
+  ResolveConflictInput,
   ScanBatch,
-  ScanPage,
+  ScanPageDetail,
   ScanProgress,
+  SetReviewedInput,
+  StudentResults,
+  TestResults,
   Section,
   SectionInput,
   SectionUpdate,
@@ -91,11 +100,27 @@ export interface EasyGradeApi {
     importFiles: (paths: string[]) => Promise<ApiResult<ScanBatch>>
     listBatches: () => Promise<ApiResult<ScanBatch[]>>
     getBatch: (batchId: number) => Promise<ApiResult<ScanBatch>>
-    listPages: (batchId: number) => Promise<ApiResult<ScanPage[]>>
+    listPages: (batchId: number) => Promise<ApiResult<ScanPageDetail[]>>
+    getPage: (pageId: number) => Promise<ApiResult<ScanPageDetail>>
     /** Delete a batch, its pages, its images, and results that came from it. */
     removeBatch: (batchId: number) => Promise<ApiResult<void>>
+    /** Attach a page to a test and student and grade it. Reports a conflict instead of replacing unless asked. */
+    assignPage: (input: AssignPageInput) => Promise<ApiResult<AssignOutcome>>
+    /** Keep the existing result (discard this page) or replace it with this page. */
+    resolveConflict: (input: ResolveConflictInput) => Promise<ApiResult<ScanPageDetail>>
+    /** Move a page to the discarded bucket, deleting its result if it had one. */
+    discardPage: (pageId: number) => Promise<ApiResult<ScanPageDetail>>
     /** Subscribe to progress events; returns an unsubscribe function. */
     onProgress: (listener: (progress: ScanProgress) => void) => () => void
+  }
+  grading: {
+    resultsForTest: (testId: number) => Promise<ApiResult<TestResults>>
+    resultsForStudent: (studentId: number) => Promise<ApiResult<StudentResults>>
+    getResult: (resultId: number) => Promise<ApiResult<GradeResult>>
+    overrideAnswer: (input: OverrideAnswerInput) => Promise<ApiResult<GradeResult>>
+    setReviewed: (input: SetReviewedInput) => Promise<ApiResult<GradeResult>>
+    /** Rescore every result of a test against its current key and overrides. */
+    regradeTest: (testId: number) => Promise<ApiResult<RegradeOutcome>>
   }
   settings: {
     get: () => Promise<ApiResult<Settings>>
@@ -151,9 +176,21 @@ export const IPC = {
     listBatches: 'scan:listBatches',
     getBatch: 'scan:getBatch',
     listPages: 'scan:listPages',
+    getPage: 'scan:getPage',
     removeBatch: 'scan:removeBatch',
+    assignPage: 'scan:assignPage',
+    resolveConflict: 'scan:resolveConflict',
+    discardPage: 'scan:discardPage',
     /** Event channel (main to renderer), not an invoke. */
     progress: 'scan:progress'
+  },
+  grading: {
+    resultsForTest: 'grading:resultsForTest',
+    resultsForStudent: 'grading:resultsForStudent',
+    getResult: 'grading:getResult',
+    overrideAnswer: 'grading:overrideAnswer',
+    setReviewed: 'grading:setReviewed',
+    regradeTest: 'grading:regradeTest'
   },
   settings: {
     get: 'settings:get',

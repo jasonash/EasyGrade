@@ -30,13 +30,16 @@ export function createServices(db: Db, scanOptions: ScanServiceOptions): Service
   const studentRepo = new StudentRepository(db)
   const testRepo = new TestRepository(db)
   const resultRepo = new ResultRepository(db)
-  const grading = new GradingService(resultRepo, testRepo)
+  const scanRepo = new ScanRepository(db)
+  const grading = new GradingService(resultRepo, testRepo, scanRepo, studentRepo)
+  const tests = new TestService(testRepo, sectionRepo)
+  tests.onKeyChange((testId) => grading.regradeTest(testId))
   return {
     sections: new SectionService(sectionRepo),
     students: new StudentService(studentRepo, sectionRepo),
-    tests: new TestService(testRepo, sectionRepo),
+    tests,
     print: new PrintService(testRepo, studentRepo, new PrintRunRepository(db), new PdfService()),
-    scan: new ScanService(new ScanRepository(db), testRepo, studentRepo, resultRepo, grading, scanOptions),
+    scan: new ScanService(scanRepo, testRepo, studentRepo, resultRepo, grading, scanOptions),
     grading,
     settings: new SettingsService(new SettingsRepository(db))
   }

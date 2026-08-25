@@ -4,11 +4,14 @@ import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { openDatabase, type Db } from './db/database'
 import { createServices } from './services'
 import { registerIpcHandlers } from './ipc'
+import { handleScanProtocol, registerScanScheme } from './scan-protocol'
 
 const APP_ID = 'com.jasonash.easygrade'
 const DARK_BACKGROUND = '#14171c'
 
 let db: Db | null = null
+
+registerScanScheme()
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -48,10 +51,12 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
+  const scansDir = join(app.getPath('userData'), 'scans')
+  handleScanProtocol(scansDir)
   db = openDatabase({ path: join(app.getPath('userData'), 'easygrade.db') })
   registerIpcHandlers(
     createServices(db, {
-      scansDir: join(app.getPath('userData'), 'scans'),
+      scansDir,
       workerPath: join(__dirname, 'scan-worker.js')
     })
   )

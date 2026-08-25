@@ -8,7 +8,8 @@ import type {
   PageBucket,
   PageReason,
   ScanBatch,
-  ScanPage
+  ScanPage,
+  ScanPageDetail
 } from '@shared/schemas'
 import { EMPTY_COUNTS } from '@shared/schemas'
 
@@ -24,6 +25,12 @@ interface BatchRow {
 
 interface PageRow {
   id: number
+  test_title: string | null
+  test_code: string | null
+  student_last: string | null
+  student_first: string | null
+  student_number: string | null
+  section_name: string | null
   batch_id: number
   page_index: number
   image_path: string
@@ -43,6 +50,16 @@ interface PageRow {
   result_id: number | null
   processed_at: string | null
 }
+
+const PAGE_SELECT = `
+  SELECT p.*, t.title AS test_title, t.code AS test_code,
+    st.last_name AS student_last, st.first_name AS student_first, st.student_number,
+    COALESCE(ss.name, ts.name) AS section_name
+  FROM scan_pages p
+  LEFT JOIN tests t ON t.id = p.test_id
+  LEFT JOIN sections ts ON ts.id = t.section_id
+  LEFT JOIN students st ON st.id = p.student_id
+  LEFT JOIN sections ss ON ss.id = st.section_id`
 
 const BUCKETS: PageBucket[] = ['graded', 'needs_assignment', 'unreadable', 'not_a_sheet', 'discarded']
 const REASONS: PageReason[] = ['qr', 'alignment', 'orientation', 'roster_mismatch', 'blank_sheet', 'conflict', 'unknown_test', 'layout']
@@ -72,11 +89,18 @@ function parseJson<T>(json: string | null, fallback: T): T {
   }
 }
 
-function toPage(row: PageRow): ScanPage {
+function toPage(row: PageRow): ScanPageDetail {
   const assignedBy = row.assigned_by === 'qr' || row.assigned_by === 'teacher' ? row.assigned_by : null
   const status = row.status === 'processed' || row.status === 'error' ? row.status : 'pending'
+  const studentName = row.student_last !== null && row.student_first !== null ? `${row.student_last}, ${row.student_first}` : null
   return {
     id: row.id,
+    testTitle: row.test_title,
+    testCode: row.test_code,
+    studentName,
+    studentNumber: row.student_number,
+    sectionName: row.section_name,
+    result: null,
     batchId: row.batch_id,
     pageIndex: row.page_index,
     imagePath: row.image_path,
@@ -115,6 +139,18 @@ export interface PageInsert {
   assignedBy: 'qr' | null
   detected: DetectedRow[] | null
   crops: Record<string, string>
+}
+
+/** Teacher assignment or a re-detection with a different layout. */
+export interface PagePatch {
+  bucket?: PageBucket
+  reason?: PageReason | null
+  resultId?: number | null
+  testId?: number | null
+  studentId?: number | null
+  assignedBy?: 'qr' | 'teacher' | null
+  detected?: DetectedRow[] | null
+  crops?: Record<string, string>
 }
 
 export interface BatchPatch {
@@ -245,13 +281,40 @@ export class ScanRepository {
     this.db.prepare('UPDATE scan_pages SET bucket = ?, reason = ?, result_id = ? WHERE id = ?').run(patch.bucket, patch.reason, patch.resultId, pageId)
   }
 
-  getPage(id: number): ScanPage | null {
-    const row = this.db.prepare('SELECT * FROM scan_pages WHERE id = ?').get(id) as PageRow | undefined
+  updatePage(id: number, patch: PagePatch): void {
+    const sets: string[] = []
+    const values: unknown[] = []
+    const add = (column: string, value: unknown): void => {
+      sets.push(`${column} = ?`)
+      values.push(value)
+    }
+    if (patch.bucket !== undefined) add('bucket', patch.bucket)
+    if (patch.reason !== undefined) add('reason', patch.reason)
+    if (patch.resultId !== undefined) add('result_id', patch.resultId)
+    if (patch.testId !== undefined) add('test_id', patch.testId)
+    if (patch.studentId !== undefined) add('student_id', patch.studentId)
+    if (patch.assignedBy !== undefined) add('assigned_by', patch.assignedBy)
+    if (patch.detected !== undefined) add('detected_json', patch.detected ? JSON.stringify(patch.detected) : null)
+    if (patch.crops !== undefined) add('crops_json', JSON.stringify(patch.crops))
+    if (sets.length === 0) return
+    values.push(id)
+    this.db.prepare(`UPDATE scan_pages SET ${sets.join(', ')} WHERE id = ?`).run(...values)
+  }
+
+  /** Page with test, student, and section names resolved; `result` is left for the service to attach. */
+  getPage(id: number): ScanPageDetail | null {
+    const row = this.db.prepare(`${PAGE_SELECT} WHERE p.id = ?`).get(id) as PageRow | undefined
     return row ? toPage(row) : null
   }
 
-  listPages(batchId: number): ScanPage[] {
-    const rows = this.db.prepare('SELECT * FROM scan_pages WHERE batch_id = ? ORDER BY page_index').all(batchId) as PageRow[]
+  listPages(batchId: number): ScanPageDetail[] {
+    const rows = this.db.prepare(`${PAGE_SELECT} WHERE p.batch_id = ? ORDER BY p.page_index`).all(batchId) as PageRow[]
+    return rows.map(toPage)
+  }
+
+  /** Every page in any batch that resolved to this test (for the Results view's page links). */
+  listPagesByTest(testId: number): ScanPage[] {
+    const rows = this.db.prepare(`${PAGE_SELECT} WHERE p.test_id = ? ORDER BY p.batch_id, p.page_index`).all(testId) as PageRow[]
     return rows.map(toPage)
   }
 }

@@ -52,7 +52,11 @@ const api: EasyGradeApi = {
     listBatches: () => ipcRenderer.invoke(IPC.scan.listBatches),
     getBatch: (batchId) => ipcRenderer.invoke(IPC.scan.getBatch, batchId),
     listPages: (batchId) => ipcRenderer.invoke(IPC.scan.listPages, batchId),
+    getPage: (pageId) => ipcRenderer.invoke(IPC.scan.getPage, pageId),
     removeBatch: (batchId) => ipcRenderer.invoke(IPC.scan.removeBatch, batchId),
+    assignPage: (input) => ipcRenderer.invoke(IPC.scan.assignPage, input),
+    resolveConflict: (input) => ipcRenderer.invoke(IPC.scan.resolveConflict, input),
+    discardPage: (pageId) => ipcRenderer.invoke(IPC.scan.discardPage, pageId),
     onProgress: (listener) => {
       const wrapped = (_event: IpcRendererEvent, progress: ScanProgress): void => listener(progress)
       ipcRenderer.on(IPC.scan.progress, wrapped)
@@ -60,6 +64,14 @@ const api: EasyGradeApi = {
         ipcRenderer.removeListener(IPC.scan.progress, wrapped)
       }
     }
+  },
+  grading: {
+    resultsForTest: (testId) => ipcRenderer.invoke(IPC.grading.resultsForTest, testId),
+    resultsForStudent: (studentId) => ipcRenderer.invoke(IPC.grading.resultsForStudent, studentId),
+    getResult: (resultId) => ipcRenderer.invoke(IPC.grading.getResult, resultId),
+    overrideAnswer: (input) => ipcRenderer.invoke(IPC.grading.overrideAnswer, input),
+    setReviewed: (input) => ipcRenderer.invoke(IPC.grading.setReviewed, input),
+    regradeTest: (testId) => ipcRenderer.invoke(IPC.grading.regradeTest, testId)
   },
   settings: {
     get: () => ipcRenderer.invoke(IPC.settings.get),

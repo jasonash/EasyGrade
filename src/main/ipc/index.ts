@@ -22,6 +22,7 @@ import { ROSTER_TEMPLATE_FILENAME } from '@shared/roster-import'
 import type { Services } from '../services'
 import { AppError } from '../services/errors'
 import { handle } from './handle'
+import { registerGradingHandlers } from './grading'
 import { registerPrintHandlers } from './print'
 import { registerScanHandlers } from './scan'
 
@@ -81,6 +82,7 @@ export function registerIpcHandlers(services: Services): void {
 
   registerPrintHandlers(services)
   registerScanHandlers(services)
+  registerGradingHandlers(services)
 
   handle<[], ReturnType<Services['settings']['get']>>(IPC.settings.get, () => services.settings.get())
   handle<[SettingsPatch], ReturnType<Services['settings']['set']>>(IPC.settings.set, (patch) =>

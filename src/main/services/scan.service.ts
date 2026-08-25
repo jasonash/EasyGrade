@@ -1,13 +1,30 @@
-import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { Worker } from 'node:worker_threads'
-import type { BucketCounts, PageBucket, PageReason, ScanBatch, ScanContext, ScanPage, ScanProgress } from '@shared/schemas'
-import { EMPTY_COUNTS } from '@shared/schemas'
+import type {
+  AssignOutcome,
+  AssignPageInput,
+  BucketCounts,
+  DetectedRow,
+  PageBucket,
+  PageReason,
+  ResolveConflictInput,
+  ScanBatch,
+  ScanContext,
+  ScanPageDetail,
+  ScanProgress
+} from '@shared/schemas'
+import { AssignPageInputSchema, EMPTY_COUNTS, ResolveConflictInputSchema } from '@shared/schemas'
+import type { Test } from '@shared/types'
+import { parseQrPayload } from '@shared/codes'
 import type { ScanRepository } from '../db/repositories/scan.repo'
 import type { StudentRepository } from '../db/repositories/student.repo'
 import type { TestRepository } from '../db/repositories/test.repo'
 import type { ResultRepository } from '../db/repositories/result.repo'
 import type { ScanJob, WorkerMessage } from '../scan/worker-protocol'
+import { decodePng, encodePng } from '../scan/png'
+import { makeCrops } from '../scan/stages/crops'
+import { classifyRows, pageReferences, sampleFills } from '../scan/stages/omr'
 import { SUPPORTED_SCAN_EXTENSIONS, mimeForFile } from '../scan/stages/rasterize'
 import { AppError } from './errors'
 import type { GradingService } from './grading.service'
@@ -70,9 +87,138 @@ export class ScanService {
     return batch
   }
 
-  listPages(batchId: number): ScanPage[] {
+  listPages(batchId: number): ScanPageDetail[] {
     this.getBatch(batchId)
-    return this.scans.listPages(batchId)
+    return this.scans.listPages(batchId).map((page) => this.attachResult(page))
+  }
+
+  getPage(pageId: number): ScanPageDetail {
+    const page = this.scans.getPage(pageId)
+    if (!page) throw new AppError('NOT_FOUND', 'Page not found')
+    return this.attachResult(page)
+  }
+
+  private attachResult(page: ScanPageDetail): ScanPageDetail {
+    const result = page.resultId !== null ? this.results.findById(page.resultId) : null
+    return { ...page, result }
+  }
+
+  /**
+   * Teacher assignment: attach a page to a test and student and grade it.
+   * Answers come from, in order, the teacher's manual entry, the detection
+   * already on the page (same test), or a fresh read of the stored canonical
+   * image with the chosen test's layout. A page whose marks were never found
+   * has no canonical image, so it needs manual answers.
+   */
+  async assignPage(input: AssignPageInput): Promise<AssignOutcome> {
+    const parsed = AssignPageInputSchema.parse(input)
+    const page = this.getPage(parsed.pageId)
+    const test = this.tests.findById(parsed.testId)
+    if (!test) throw new AppError('NOT_FOUND', 'Test not found')
+    if (test.status !== 'finalized' || !test.layout) throw new AppError('VALIDATION', 'Only finalized tests can be graded')
+    const student = this.students.findById(parsed.studentId)
+    if (!student) throw new AppError('NOT_FOUND', 'Student not found')
+
+    const current = page.resultId !== null ? this.results.findById(page.resultId) : null
+    if (current && current.testId === test.id && current.studentId === student.id && !parsed.answers) {
+      return { status: 'assigned', page }
+    }
+
+    const other = this.results.findByPair(test.id, student.id)
+    if (other && other.id !== current?.id) {
+      if (!parsed.replace) {
+        const existingPage = other.scanPageId !== null ? this.scans.getPage(other.scanPageId) : null
+        return { status: 'conflict', existing: other, existingPage: existingPage ? this.attachResult(existingPage) : null }
+      }
+      this.results.delete(other.id)
+      if (other.scanPageId !== null && other.scanPageId !== page.id) {
+        this.scans.updatePage(other.scanPageId, { bucket: 'discarded', reason: 'conflict', resultId: null })
+      }
+    }
+
+    let rawAnswers: (number | null)[] | null = null
+    let detected: DetectedRow[] | null = null
+    let crops: Record<string, string> | undefined
+    if (parsed.answers) {
+      rawAnswers = validateManualAnswers(test, parsed.answers)
+    } else if (page.detected && page.testId === test.id && page.detected.length === test.questions.length) {
+      detected = page.detected
+    } else {
+      const fresh = await this.detectWithLayout(page, test)
+      if (!fresh) {
+        throw new AppError('VALIDATION', 'The bubbles on this page could not be read. Enter the answers by hand to grade it.')
+      }
+      detected = fresh.detected
+      crops = fresh.crops
+    }
+
+    if (current) this.results.delete(current.id)
+    const qrVersion = page.qrPayload ? parseQrPayload(page.qrPayload)?.layoutVersion : undefined
+    const record = { testId: test.id, studentId: student.id, scanPageId: page.id, layoutVersion: qrVersion ?? test.layoutVersion }
+    const outcome = detected
+      ? this.grading.recordFromScan({ ...record, answers: detected })
+      : this.grading.recordManual({ ...record, rawAnswers: rawAnswers ?? [] })
+    if (outcome.conflict || !outcome.result) throw new AppError('CONFLICT', 'A result already exists for this student')
+
+    this.scans.updatePage(page.id, {
+      testId: test.id,
+      studentId: student.id,
+      assignedBy: 'teacher',
+      bucket: 'graded',
+      reason: null,
+      resultId: outcome.result.id,
+      detected,
+      ...(crops ? { crops } : {})
+    })
+    return { status: 'assigned', page: this.getPage(page.id) }
+  }
+
+  /** A page whose (test, student) pair already had a result when it was scanned. */
+  async resolveConflict(input: ResolveConflictInput): Promise<ScanPageDetail> {
+    const parsed = ResolveConflictInputSchema.parse(input)
+    const page = this.getPage(parsed.pageId)
+    if (page.reason !== 'conflict' || page.testId === null || page.studentId === null) {
+      throw new AppError('VALIDATION', 'This page is not a conflict')
+    }
+    if (parsed.action === 'keep') return this.discardPage(page.id)
+    const outcome = await this.assignPage({ pageId: page.id, testId: page.testId, studentId: page.studentId, replace: true })
+    if (outcome.status !== 'assigned') throw new AppError('INTERNAL', 'Replace did not complete')
+    return outcome.page
+  }
+
+  /** Move a page out of every working bucket. A graded page loses its result. */
+  discardPage(pageId: number): ScanPageDetail {
+    const page = this.getPage(pageId)
+    if (page.resultId !== null) this.results.delete(page.resultId)
+    this.scans.updatePage(page.id, { bucket: 'discarded', resultId: null })
+    return this.getPage(page.id)
+  }
+
+  /** Re-read the bubbles of an aligned page with a specific test's layout, regenerating the row crops. */
+  private async detectWithLayout(page: ScanPageDetail, test: Test): Promise<{ detected: DetectedRow[]; crops: Record<string, string> } | null> {
+    if (!test.layout) return null
+    if (page.alignmentQuality !== 'good' && page.alignmentQuality !== 'weak') return null
+    let canonical
+    try {
+      canonical = decodePng(await readFile(this.imagePath(page.imagePath)))
+    } catch {
+      return null
+    }
+    const refs = pageReferences(canonical)
+    if (!refs.usable) return null
+    const detected = classifyRows(sampleFills(canonical, test.layout, refs))
+
+    const stem = basename(page.imagePath, '.png')
+    const dir = join(this.options.scansDir, String(page.batchId))
+    const crops: Record<string, string> = {}
+    for (const [name, rel] of Object.entries(page.crops)) {
+      if (!name.startsWith('row_')) crops[name] = rel
+    }
+    for (const [name, img] of Object.entries(makeCrops(canonical, test.layout, detected, false))) {
+      await writeFile(join(dir, `${stem}.${name}.png`), encodePng(img))
+      crops[name] = join(String(page.batchId), `${stem}.${name}.png`)
+    }
+    return { detected, crops }
   }
 
   /** Everything a QR can refer to right now. */
@@ -232,6 +378,19 @@ export class ScanService {
     if (this.options.workerPath) return this.options.workerPath
     throw new AppError('INTERNAL', 'Scan worker path is not configured')
   }
+}
+
+function validateManualAnswers(test: Test, answers: (number | null)[]): (number | null)[] {
+  if (answers.length !== test.questions.length) {
+    throw new AppError('VALIDATION', `Enter one answer per question (${test.questions.length})`)
+  }
+  answers.forEach((choice, q) => {
+    const question = test.questions[q]
+    if (choice !== null && (!question || choice >= question.choices.length)) {
+      throw new AppError('VALIDATION', `Question ${q + 1} has no choice ${choice + 1}`)
+    }
+  })
+  return answers
 }
 
 function runInWorker(workerPath: string, job: ScanJob, handlers: RunnerHandlers): Promise<void> {

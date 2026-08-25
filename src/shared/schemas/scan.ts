@@ -166,6 +166,16 @@ export const QuestionFlagSchema = z.object({
 })
 export type QuestionFlag = z.infer<typeof QuestionFlagSchema>
 
+/** A teacher's decision for one question, stored in answer_overrides. */
+export interface AnswerOverride {
+  q: number
+  /** What the scanner detected at the time of the override. */
+  rawChoice: number | null
+  /** What the teacher chose; null means "count as blank". */
+  overrideChoice: number | null
+  note: string | null
+}
+
 export interface GradeResult {
   id: number
   testId: number
@@ -173,13 +183,26 @@ export interface GradeResult {
   scanPageId: number | null
   layoutVersion: number
   rawAnswers: (number | null)[]
+  /** rawAnswers with overrides applied. */
   finalAnswers: (number | null)[]
   correctCount: number
   possibleCount: number
+  /** Per-question flags remaining after overrides. */
   flags: QuestionFlag[]
+  overrides: AnswerOverride[]
   reviewed: boolean
   gradedAt: string
   updatedAt: string
+}
+
+/** A page plus the names the review screens show, resolved in one query. */
+export interface ScanPageDetail extends ScanPage {
+  testTitle: string | null
+  testCode: string | null
+  studentName: string | null
+  studentNumber: string | null
+  sectionName: string | null
+  result: GradeResult | null
 }
 
 /** Progress event streamed to the renderer while a batch imports. */
