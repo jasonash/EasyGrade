@@ -8,6 +8,8 @@ import { AppShell } from '@/components/layout/AppShell'
 import { Toasts } from '@/components/common/Toasts'
 import { SectionsPage } from '@/pages/SectionsPage'
 import { SectionDetailPage } from '@/pages/SectionDetailPage'
+import { TestsPage } from '@/pages/TestsPage'
+import { TestEditorPage } from '@/pages/TestEditorPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 
@@ -28,9 +30,8 @@ export function App(): JSX.Element {
       <AppShell>
         {page === 'sections' ? <SectionsPage /> : null}
         {page === 'section-detail' ? <SectionDetailPage /> : null}
-        {page === 'tests' ? (
-          <PlaceholderPage title="Tests" subtitle="Create and print single-page tests" phase="Phase 3" />
-        ) : null}
+        {page === 'tests' ? <TestsPage /> : null}
+        {page === 'test-editor' ? <TestEditorPage /> : null}
         {page === 'grading' ? (
           <PlaceholderPage title="Grading" subtitle="Import scans and review results" phase="Phase 5" />
         ) : null}

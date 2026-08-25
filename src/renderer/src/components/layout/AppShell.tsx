@@ -40,14 +40,16 @@ const NAV_ITEMS: NavItem[] = [
 ]
 
 /** Pages that highlight a given nav item. */
-function isNavActive(item: Page, page: Page): boolean {
-  if (item === 'sections') return page === 'sections' || page === 'section-detail'
-  return item === page
+function isNavActive(item: Page, page: Page, editorReturn: 'tests' | 'section-detail'): boolean {
+  const effective = page === 'test-editor' ? editorReturn : page
+  if (item === 'sections') return effective === 'sections' || effective === 'section-detail'
+  return item === effective
 }
 
 export function AppShell({ children }: { children: ReactNode }): JSX.Element {
   const page = useUiStore((s) => s.page)
   const navigate = useUiStore((s) => s.navigate)
+  const editorReturn = useUiStore((s) => s.editorReturnPage)
   const toast = useUiStore((s) => s.toast)
   const loadSections = useSectionsStore((s) => s.load)
   const { year, years, setYear } = useSchoolYearFilter()
@@ -118,7 +120,7 @@ export function AppShell({ children }: { children: ReactNode }): JSX.Element {
             {NAV_ITEMS.map((item) => (
               <ListItemButton
                 key={item.page}
-                selected={isNavActive(item.page, page)}
+                selected={isNavActive(item.page, page, editorReturn)}
                 onClick={() => navigate(item.page)}
                 sx={{ borderRadius: 1, mb: 0.5 }}
               >

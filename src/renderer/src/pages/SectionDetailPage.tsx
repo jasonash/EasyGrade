@@ -4,8 +4,8 @@ import { Box, Chip, IconButton, Stack, Tab, Tabs, Typography } from '@mui/materi
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import { useUiStore, type SectionTab } from '@/stores/ui.store'
 import { useSectionsStore } from '@/stores/sections.store'
-import { EmptyState } from '@/components/common/EmptyState'
 import { RosterTab } from '@/components/students/RosterTab'
+import { TestsList } from '@/components/tests/TestsList'
 
 export function SectionDetailPage(): JSX.Element {
   const sectionId = useUiStore((s) => s.selectedSectionId)
@@ -41,9 +41,7 @@ export function SectionDetailPage(): JSX.Element {
       </Tabs>
 
       {tab === 'roster' ? <RosterTab section={section} /> : null}
-      {tab === 'tests' ? (
-        <EmptyState title="No tests yet" description="Creating and printing tests arrives in Phase 3." />
-      ) : null}
+      {tab === 'tests' ? <TestsList sectionId={section.id} /> : null}
     </>
   )
 }
