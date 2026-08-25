@@ -14,7 +14,13 @@ import type {
   Student,
   StudentInput,
   StudentMove,
-  StudentUpdate
+  StudentUpdate,
+  Test,
+  TestCopyInput,
+  TestCreateInput,
+  TestKeyUpdate,
+  TestSummary,
+  TestUpdateInput
 } from './types'
 
 /**
@@ -49,6 +55,20 @@ export interface EasyGradeApi {
     /** Save the CSV template via a save dialog. Resolves the saved path, or null when cancelled. */
     saveTemplate: () => Promise<ApiResult<string | null>>
   }
+  tests: {
+    /** All tests, or only one section's. */
+    list: (sectionId?: number) => Promise<ApiResult<TestSummary[]>>
+    get: (id: number) => Promise<ApiResult<Test>>
+    create: (input: TestCreateInput) => Promise<ApiResult<Test>>
+    /** Draft text edits. Refused for finalized tests. */
+    update: (input: TestUpdateInput) => Promise<ApiResult<Test>>
+    /** Answer key only; allowed at any status. */
+    updateKey: (input: TestKeyUpdate) => Promise<ApiResult<Test>>
+    finalize: (id: number) => Promise<ApiResult<Test>>
+    unlock: (id: number) => Promise<ApiResult<Test>>
+    copy: (input: TestCopyInput) => Promise<ApiResult<Test>>
+    remove: (id: number) => Promise<ApiResult<void>>
+  }
   settings: {
     get: () => Promise<ApiResult<Settings>>
     set: (patch: SettingsPatch) => Promise<ApiResult<Settings>>
@@ -79,6 +99,17 @@ export const IPC = {
     importCommit: 'students:importCommit',
     pickImportFile: 'students:pickImportFile',
     saveTemplate: 'students:saveTemplate'
+  },
+  tests: {
+    list: 'tests:list',
+    get: 'tests:get',
+    create: 'tests:create',
+    update: 'tests:update',
+    updateKey: 'tests:updateKey',
+    finalize: 'tests:finalize',
+    unlock: 'tests:unlock',
+    copy: 'tests:copy',
+    remove: 'tests:remove'
   },
   settings: {
     get: 'settings:get',

@@ -12,7 +12,11 @@ import type {
   SettingsPatch,
   StudentInput,
   StudentMove,
-  StudentUpdate
+  StudentUpdate,
+  TestCopyInput,
+  TestCreateInput,
+  TestKeyUpdate,
+  TestUpdateInput
 } from '@shared/types'
 import { ROSTER_TEMPLATE_FILENAME } from '@shared/roster-import'
 import type { Services } from '../services'
@@ -61,6 +65,17 @@ export function registerIpcHandlers(services: Services): void {
   )
   handle<[], PickedTextFile | null>(IPC.students.pickImportFile, () => pickImportFile())
   handle<[], string | null>(IPC.students.saveTemplate, () => saveTemplate(students.template()))
+
+  const tests = services.tests
+  handle<[number | undefined], ReturnType<typeof tests.list>>(IPC.tests.list, (sectionId) => tests.list(sectionId))
+  handle<[number], ReturnType<typeof tests.get>>(IPC.tests.get, (id) => tests.get(id))
+  handle<[TestCreateInput], ReturnType<typeof tests.create>>(IPC.tests.create, (input) => tests.create(input))
+  handle<[TestUpdateInput], ReturnType<typeof tests.update>>(IPC.tests.update, (input) => tests.update(input))
+  handle<[TestKeyUpdate], ReturnType<typeof tests.updateKey>>(IPC.tests.updateKey, (input) => tests.updateKey(input))
+  handle<[number], ReturnType<typeof tests.finalize>>(IPC.tests.finalize, (id) => tests.finalize(id))
+  handle<[number], ReturnType<typeof tests.unlock>>(IPC.tests.unlock, (id) => tests.unlock(id))
+  handle<[TestCopyInput], ReturnType<typeof tests.copy>>(IPC.tests.copy, (input) => tests.copy(input))
+  handle<[number], void>(IPC.tests.remove, (id) => tests.remove(id))
 
   handle<[], ReturnType<Services['settings']['get']>>(IPC.settings.get, () => services.settings.get())
   handle<[SettingsPatch], ReturnType<Services['settings']['set']>>(IPC.settings.set, (patch) =>

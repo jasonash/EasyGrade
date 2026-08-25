@@ -1,0 +1,334 @@
+import type { JSX } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Alert, Box, Button, Chip, IconButton, Skeleton, Stack, TextField, Tooltip, Typography } from '@mui/material'
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import AddIcon from '@mui/icons-material/Add'
+import LockIcon from '@mui/icons-material/Lock'
+import LockOpenIcon from '@mui/icons-material/LockOpen'
+import PrintIcon from '@mui/icons-material/Print'
+import type { Test } from '@shared/types'
+import { MAX_INSTRUCTIONS_CHARS, MAX_QUESTIONS, MAX_TITLE_CHARS, measureTest } from '@shared/layout'
+import { useUiStore } from '@/stores/ui.store'
+import { useTestsStore } from '@/stores/tests.store'
+import { describeError } from '@/lib/errors'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { FitMeter } from '@/components/editor/FitMeter'
+import { QuestionCard, type EditorQuestion } from '@/components/editor/QuestionCard'
+import { SheetPreview } from '@/components/editor/SheetPreview'
+
+interface EditorState {
+  title: string
+  instructions: string
+  questions: EditorQuestion[]
+}
+
+type SaveState = 'saved' | 'dirty' | 'saving' | 'error'
+
+const AUTOSAVE_MS = 800
+let nextKey = 1
+
+function fromTest(test: Test): EditorState {
+  return {
+    title: test.title,
+    instructions: test.instructions,
+    questions: test.questions.map((q) => ({ key: nextKey++, stem: q.stem, choices: [...q.choices], correctChoice: q.correctChoice }))
+  }
+}
+
+function blankQuestion(): EditorQuestion {
+  return { key: nextKey++, stem: '', choices: ['', '', '', ''], correctChoice: 0 }
+}
+
+export function TestEditorPage(): JSX.Element {
+  const testId = useUiStore((s) => s.selectedTestId)
+  const closeEditor = useUiStore((s) => s.closeEditor)
+  const toast = useUiStore((s) => s.toast)
+  const { get, update, updateKey, finalize, unlock } = useTestsStore()
+
+  const [test, setTest] = useState<Test | null>(null)
+  const [state, setState] = useState<EditorState | null>(null)
+  const [saveState, setSaveState] = useState<SaveState>('saved')
+  const [busy, setBusy] = useState(false)
+  const [unlockOpen, setUnlockOpen] = useState(false)
+
+  const stateRef = useRef<EditorState | null>(null)
+  const dirtyRef = useRef(false)
+  const timerRef = useRef<number | null>(null)
+  stateRef.current = state
+
+  const readOnly = test?.status === 'finalized'
+
+  useEffect(() => {
+    if (testId === null) return
+    let cancelled = false
+    void get(testId)
+      .then((loaded) => {
+        if (cancelled) return
+        setTest(loaded)
+        setState(fromTest(loaded))
+        dirtyRef.current = false
+        setSaveState('saved')
+      })
+      .catch((err: unknown) => {
+        toast('error', describeError(err))
+        closeEditor()
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [testId, get, toast, closeEditor])
+
+  const save = useCallback(async (): Promise<void> => {
+    const current = stateRef.current
+    if (!current || testId === null || !dirtyRef.current) return
+    dirtyRef.current = false
+    setSaveState('saving')
+    try {
+      const saved = await update({
+        id: testId,
+        title: current.title,
+        instructions: current.instructions,
+        questions: current.questions.map((q) => ({ stem: q.stem, choices: q.choices, correctChoice: q.correctChoice }))
+      })
+      setTest((prev) => (prev ? { ...prev, ...saved } : saved))
+      setSaveState(dirtyRef.current ? 'dirty' : 'saved')
+    } catch (err) {
+      dirtyRef.current = true
+      setSaveState('error')
+      toast('error', describeError(err))
+    }
+  }, [testId, update, toast])
+
+  // Flush a pending save when leaving the editor.
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) window.clearTimeout(timerRef.current)
+      void save()
+    }
+  }, [save])
+
+  const edit = (next: EditorState): void => {
+    setState(next)
+    if (readOnly) return
+    dirtyRef.current = true
+    setSaveState('dirty')
+    if (timerRef.current !== null) window.clearTimeout(timerRef.current)
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = null
+      void save()
+    }, AUTOSAVE_MS)
+  }
+
+  const measure = useMemo(
+    () =>
+      state
+        ? measureTest({
+            title: state.title,
+            instructions: state.instructions,
+            questions: state.questions.map((q) => ({ stem: q.stem, choices: q.choices }))
+          })
+        : null,
+    [state]
+  )
+
+  const changeKey = async (index: number, correctChoice: number): Promise<void> => {
+    if (!state || !test) return
+    const questions = state.questions.map((q, i) => (i === index ? { ...q, correctChoice } : q))
+    if (!readOnly) {
+      edit({ ...state, questions })
+      return
+    }
+    setState({ ...state, questions })
+    try {
+      const updated = await updateKey({ id: test.id, correctChoices: questions.map((q) => q.correctChoice) })
+      setTest(updated)
+      toast('success', test.resultCount > 0 ? `Key updated. ${test.resultCount} results will regrade.` : 'Answer key updated')
+    } catch (err) {
+      toast('error', describeError(err))
+      setState(fromTest(test))
+    }
+  }
+
+  const doFinalize = async (): Promise<void> => {
+    if (!test) return
+    setBusy(true)
+    try {
+      if (timerRef.current !== null) window.clearTimeout(timerRef.current)
+      await save()
+      const finalized = await finalize(test.id)
+      setTest(finalized)
+      setState(fromTest(finalized))
+      toast('success', 'Test finalized. Layout is locked and ready to print.')
+    } catch (err) {
+      toast('error', describeError(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const doUnlock = async (): Promise<void> => {
+    if (!test) return
+    setBusy(true)
+    try {
+      const unlocked = await unlock(test.id)
+      setTest(unlocked)
+      setState(fromTest(unlocked))
+      setUnlockOpen(false)
+      toast('info', 'Test unlocked. Finalize again before printing.')
+    } catch (err) {
+      toast('error', describeError(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!test || !state || !measure) {
+    return <Skeleton variant="rounded" height={400} />
+  }
+
+  const canFinalize = measure.fits && !busy && saveState !== 'error'
+  const saveLabel = { saved: 'Saved', dirty: 'Unsaved changes', saving: 'Saving...', error: 'Save failed' }[saveState]
+
+  return (
+    <>
+      <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
+        <IconButton onClick={closeEditor} aria-label="Back to tests" edge="start">
+          <ArrowBackIcon />
+        </IconButton>
+        <Box sx={{ flexGrow: 1, minWidth: 240 }}>
+          <TextField
+            variant="standard"
+            value={state.title}
+            onChange={(e) => edit({ ...state, title: e.target.value.replace(/[\r\n]+/g, ' ').slice(0, MAX_TITLE_CHARS) })}
+            placeholder="Test title"
+            fullWidth
+            slotProps={{ input: { readOnly, sx: { fontSize: 22, fontWeight: 600 } } }}
+            inputProps={{ 'aria-label': 'Test title' }}
+          />
+          <Typography variant="caption" color="text.secondary">
+            {test.sectionName} · Code {test.code} ·{' '}
+            {readOnly ? `Finalized, layout v${test.layoutVersion}` : saveLabel}
+          </Typography>
+        </Box>
+        <FitMeter measure={measure} />
+        {readOnly ? (
+          <Chip icon={<LockIcon />} label="Finalized" color="success" variant="outlined" />
+        ) : null}
+        {readOnly ? (
+          <Button variant="outlined" startIcon={<LockOpenIcon />} onClick={() => setUnlockOpen(true)} disabled={busy}>
+            Unlock
+          </Button>
+        ) : (
+          <Tooltip title={measure.fits ? 'Lock the layout so sheets can be printed' : 'Fix the fit problems first'}>
+            <span>
+              <Button variant="contained" startIcon={<LockIcon />} onClick={() => void doFinalize()} disabled={!canFinalize}>
+                Finalize
+              </Button>
+            </span>
+          </Tooltip>
+        )}
+        <Tooltip title="Printing arrives in Phase 4">
+          <span>
+            <Button variant="outlined" startIcon={<PrintIcon />} disabled>
+              Print
+            </Button>
+          </span>
+        </Tooltip>
+      </Stack>
+
+      {readOnly ? (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Text is locked. The answer key stays editable
+          {test.resultCount > 0 ? `; changing it regrades ${test.resultCount} existing results` : ''}. Unlock to edit
+          questions; printed sheets will need to be reprinted after you finalize again.
+        </Alert>
+      ) : null}
+      {!measure.fits && measure.problems.length > 0 ? (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {measure.problems.join('. ')}
+        </Alert>
+      ) : null}
+
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 7fr) minmax(0, 5fr)' }, gap: 3, alignItems: 'start' }}>
+        <Stack spacing={2}>
+          <TextField
+            label="Instructions"
+            value={state.instructions}
+            onChange={(e) => edit({ ...state, instructions: e.target.value.replace(/[\r\n]+/g, ' ').slice(0, MAX_INSTRUCTIONS_CHARS) })}
+            size="small"
+            fullWidth
+            placeholder="Fill in one bubble completely for each question."
+            helperText={`${state.instructions.length}/${MAX_INSTRUCTIONS_CHARS}. Optional, printed above the questions.`}
+            slotProps={{ input: { readOnly } }}
+          />
+
+          {state.questions.map((question, index) => (
+            <QuestionCard
+              key={question.key}
+              index={index}
+              count={state.questions.length}
+              question={question}
+              measure={measure.questions[index]}
+              readOnly={readOnly}
+              onChange={(next) => {
+                if (readOnly) {
+                  if (next.correctChoice !== question.correctChoice) void changeKey(index, next.correctChoice)
+                  return
+                }
+                edit({ ...state, questions: state.questions.map((q, i) => (i === index ? next : q)) })
+              }}
+              onMove={(direction) => {
+                const target = index + direction
+                if (target < 0 || target >= state.questions.length) return
+                const questions = [...state.questions]
+                const [moved] = questions.splice(index, 1)
+                if (moved) questions.splice(target, 0, moved)
+                edit({ ...state, questions })
+              }}
+              onRemove={() => edit({ ...state, questions: state.questions.filter((_, i) => i !== index) })}
+            />
+          ))}
+
+          {readOnly ? null : (
+            <Stack direction="row" alignItems="center" spacing={2}>
+              <Button
+                variant="outlined"
+                startIcon={<AddIcon />}
+                disabled={state.questions.length >= MAX_QUESTIONS}
+                onClick={() => edit({ ...state, questions: [...state.questions, blankQuestion()] })}
+              >
+                Question
+              </Button>
+              <Typography variant="body2" color="text.secondary">
+                {state.questions.length} of {MAX_QUESTIONS}
+              </Typography>
+            </Stack>
+          )}
+        </Stack>
+
+        <Box sx={{ position: { lg: 'sticky' }, top: { lg: 64 } }}>
+          <SheetPreview
+            title={state.title}
+            sectionName={test.sectionName}
+            code={`EG1 ${test.code}`}
+            measure={measure}
+            choiceCounts={state.questions.map((q) => q.choices.length)}
+          />
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, textAlign: 'center' }}>
+            Blank-sheet preview. Personalized sheets print the student name instead of the boxes.
+          </Typography>
+        </Box>
+      </Box>
+
+      <ConfirmDialog
+        open={unlockOpen}
+        title="Unlock this test?"
+        message="You will be able to edit questions again. Any sheets already printed use the old layout and should be reprinted after you finalize the new version."
+        confirmLabel="Unlock"
+        busy={busy}
+        onClose={() => setUnlockOpen(false)}
+        onConfirm={() => void doUnlock()}
+      />
+    </>
+  )
+}

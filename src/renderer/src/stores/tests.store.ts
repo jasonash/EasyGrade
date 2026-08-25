@@ -1,0 +1,72 @@
+import { create } from 'zustand'
+import type { Test, TestCopyInput, TestCreateInput, TestKeyUpdate, TestSummary, TestUpdateInput } from '@shared/types'
+import { api, unwrap } from '@/api'
+import { useSectionsStore } from './sections.store'
+
+interface TestsState {
+  tests: TestSummary[]
+  loading: boolean
+  load: () => Promise<void>
+  get: (id: number) => Promise<Test>
+  create: (input: TestCreateInput) => Promise<Test>
+  update: (input: TestUpdateInput) => Promise<Test>
+  updateKey: (input: TestKeyUpdate) => Promise<Test>
+  finalize: (id: number) => Promise<Test>
+  unlock: (id: number) => Promise<Test>
+  copy: (input: TestCopyInput) => Promise<Test>
+  remove: (id: number) => Promise<void>
+}
+
+/** Test counts live on sections, so section lists refresh after test changes. */
+async function refreshAll(): Promise<void> {
+  await Promise.all([useTestsStore.getState().load(), useSectionsStore.getState().load()])
+}
+
+export const useTestsStore = create<TestsState>((set) => ({
+  tests: [],
+  loading: false,
+  load: async () => {
+    set({ loading: true })
+    try {
+      set({ tests: await unwrap(api.tests.list()) })
+    } finally {
+      set({ loading: false })
+    }
+  },
+  get: (id) => unwrap(api.tests.get(id)),
+  create: async (input) => {
+    const test = await unwrap(api.tests.create(input))
+    await refreshAll()
+    return test
+  },
+  update: async (input) => {
+    const test = await unwrap(api.tests.update(input))
+    // Keep the list in sync without a full reload on every autosave.
+    set((state) => ({
+      tests: state.tests.map((t) =>
+        t.id === test.id ? { ...t, title: test.title, questionCount: test.questions.length, updatedAt: test.updatedAt } : t
+      )
+    }))
+    return test
+  },
+  updateKey: (input) => unwrap(api.tests.updateKey(input)),
+  finalize: async (id) => {
+    const test = await unwrap(api.tests.finalize(id))
+    await useTestsStore.getState().load()
+    return test
+  },
+  unlock: async (id) => {
+    const test = await unwrap(api.tests.unlock(id))
+    await useTestsStore.getState().load()
+    return test
+  },
+  copy: async (input) => {
+    const test = await unwrap(api.tests.copy(input))
+    await refreshAll()
+    return test
+  },
+  remove: async (id) => {
+    await unwrap(api.tests.remove(id))
+    await refreshAll()
+  }
+}))
