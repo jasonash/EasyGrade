@@ -11,6 +11,10 @@ const APP_ID = 'com.jasonash.easygrade'
 const DARK_BACKGROUND = '#14171c'
 
 let store: DataStore | null = null
+let splashWindow: BrowserWindow | null = null
+let splashShownAt = 0
+/** The splash stays up at least this long so it does not flash on fast machines. */
+const MINIMUM_SPLASH_MS = 2000
 
 const DAILY_BACKUP_CHECK_MS = 60 * 60 * 1000
 
@@ -36,6 +40,44 @@ function cleanTempPdfs(): void {
   }
 }
 
+/** Static resources (splash page, icon): the project folder in dev, extraResources when packaged. */
+function resourcesDir(): string {
+  return is.dev ? join(__dirname, '../../resources') : join(process.resourcesPath, 'resources')
+}
+
+function createSplashWindow(): void {
+  splashWindow = new BrowserWindow({
+    width: 400,
+    height: 320,
+    frame: false,
+    resizable: false,
+    center: true,
+    show: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    backgroundColor: DARK_BACKGROUND,
+    webPreferences: { contextIsolation: true, nodeIntegration: false }
+  })
+  splashWindow.once('ready-to-show', () => {
+    splashShownAt = Date.now()
+    splashWindow?.show()
+  })
+  splashWindow.on('closed', () => {
+    splashWindow = null
+  })
+  void splashWindow.loadFile(join(resourcesDir(), 'splash.html'), { query: { version: app.getVersion() } })
+}
+
+/** Close the splash (after its minimum time) and reveal the main window. */
+function revealAfterSplash(mainWindow: BrowserWindow): void {
+  const remaining = splashWindow ? Math.max(0, MINIMUM_SPLASH_MS - (Date.now() - splashShownAt)) : 0
+  setTimeout(() => {
+    if (splashWindow && !splashWindow.isDestroyed()) splashWindow.close()
+    splashWindow = null
+    if (!mainWindow.isDestroyed()) mainWindow.show()
+  }, remaining)
+}
+
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
     width: 1280,
@@ -53,7 +95,7 @@ function createWindow(): void {
     }
   })
 
-  mainWindow.on('ready-to-show', () => mainWindow.show())
+  mainWindow.once('ready-to-show', () => revealAfterSplash(mainWindow))
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     void shell.openExternal(details.url)
@@ -77,6 +119,7 @@ app.whenReady().then(() => {
   const scansDir = join(app.getPath('userData'), 'scans')
   const dbPath = join(app.getPath('userData'), 'easygrade.db')
   handleScanProtocol(scansDir)
+  createSplashWindow()
   const dataStore = new DataStore({
     dbPath,
     scansDir,
