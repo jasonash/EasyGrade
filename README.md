@@ -13,7 +13,7 @@ Download the latest release from the [Releases page](https://github.com/jasonash
 | macOS (Apple Silicon) | `EasyGrade-<version>-arm64.dmg` |
 | macOS (Intel) | `EasyGrade-<version>-x64.dmg` |
 | Windows | `EasyGrade-Setup-<version>.exe` (installer) or `EasyGrade-Portable-<version>.exe` |
-| Linux | `EasyGrade-<version>-x64.AppImage` or `EasyGrade-<version>-x64.deb` |
+| Linux | `EasyGrade-<version>-x86_64.AppImage` or `EasyGrade-<version>-amd64.deb` |
 
 The macOS builds are signed and notarized. Windows builds are not code-signed, so SmartScreen may ask you to confirm the first launch. Once installed, EasyGrade checks for new releases on its own and offers to download them; nothing is installed without your say-so.
 
