@@ -1,11 +1,21 @@
 export type {
   Id,
+  ImportCommitInput,
+  ImportCommitResult,
+  ImportPreview,
+  ImportPreviewInput,
+  ImportRow,
+  ImportRowStatus,
   Section,
   SectionInput,
   SectionUpdate,
   Settings,
   SettingsKey,
   SettingsPatch,
+  Student,
+  StudentInput,
+  StudentMove,
+  StudentUpdate,
   ThemeMode
 } from '../schemas'
 
@@ -22,4 +32,10 @@ export interface AppInfo {
   version: string
   platform: NodeJS.Platform
   userDataPath: string
+}
+
+/** A text file the user picked in an open dialog. */
+export interface PickedTextFile {
+  name: string
+  text: string
 }
