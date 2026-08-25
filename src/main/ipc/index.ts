@@ -26,11 +26,14 @@ import { registerBackupHandlers, type BackupHooks } from './backup'
 import { registerExportHandlers } from './export'
 import { registerGradingHandlers } from './grading'
 import { registerPrintHandlers } from './print'
-import { registerScanHandlers } from './scan'
+import { registerScanHandlers, wireScanProgress } from './scan'
 
 const MAX_IMPORT_BYTES = 1_000_000
 
-export function registerIpcHandlers(services: Services, backupHooks: BackupHooks): void {
+export { wireScanProgress }
+
+/** Handlers resolve services through the getter on every call so a restore can rebuild them in place. */
+export function registerIpcHandlers(services: () => Services, backupHooks: BackupHooks): void {
   handle<[], AppInfo>(IPC.app.info, () => ({
     version: app.getVersion(),
     platform: process.platform,
@@ -38,49 +41,49 @@ export function registerIpcHandlers(services: Services, backupHooks: BackupHooks
   }))
 
   handle<[boolean | undefined], ReturnType<Services['sections']['list']>>(IPC.sections.list, (includeArchived) =>
-    services.sections.list(includeArchived ?? false)
+    services().sections.list(includeArchived ?? false)
   )
-  handle<[number], ReturnType<Services['sections']['get']>>(IPC.sections.get, (id) => services.sections.get(id))
+  handle<[number], ReturnType<Services['sections']['get']>>(IPC.sections.get, (id) => services().sections.get(id))
   handle<[SectionInput], ReturnType<Services['sections']['create']>>(IPC.sections.create, (input) =>
-    services.sections.create(input)
+    services().sections.create(input)
   )
   handle<[SectionUpdate], ReturnType<Services['sections']['update']>>(IPC.sections.update, (input) =>
-    services.sections.update(input)
+    services().sections.update(input)
   )
-  handle<[number], void>(IPC.sections.remove, (id) => services.sections.remove(id))
-  handle<[], string[]>(IPC.sections.schoolYears, () => services.sections.schoolYears())
+  handle<[number], void>(IPC.sections.remove, (id) => services().sections.remove(id))
+  handle<[], string[]>(IPC.sections.schoolYears, () => services().sections.schoolYears())
 
-  const students = services.students
-  handle<[number, boolean | undefined], ReturnType<typeof students.listBySection>>(
+  type Students = Services['students']
+  handle<[number, boolean | undefined], ReturnType<Students['listBySection']>>(
     IPC.students.listBySection,
-    (sectionId, includeInactive) => students.listBySection(sectionId, includeInactive ?? false)
+    (sectionId, includeInactive) => services().students.listBySection(sectionId, includeInactive ?? false)
   )
-  handle<[number], ReturnType<typeof students.get>>(IPC.students.get, (id) => students.get(id))
-  handle<[StudentInput], ReturnType<typeof students.create>>(IPC.students.create, (input) => students.create(input))
-  handle<[StudentUpdate], ReturnType<typeof students.update>>(IPC.students.update, (input) => students.update(input))
-  handle<[StudentMove], ReturnType<typeof students.move>>(IPC.students.move, (input) => students.move(input))
-  handle<[number], ReturnType<typeof students.deactivate>>(IPC.students.deactivate, (id) => students.deactivate(id))
-  handle<[number], ReturnType<typeof students.reactivate>>(IPC.students.reactivate, (id) => students.reactivate(id))
-  handle<[number], void>(IPC.students.remove, (id) => students.remove(id))
-  handle<[ImportPreviewInput], ReturnType<typeof students.importPreview>>(IPC.students.importPreview, (input) =>
-    students.importPreview(input)
+  handle<[number], ReturnType<Students['get']>>(IPC.students.get, (id) => services().students.get(id))
+  handle<[StudentInput], ReturnType<Students['create']>>(IPC.students.create, (input) => services().students.create(input))
+  handle<[StudentUpdate], ReturnType<Students['update']>>(IPC.students.update, (input) => services().students.update(input))
+  handle<[StudentMove], ReturnType<Students['move']>>(IPC.students.move, (input) => services().students.move(input))
+  handle<[number], ReturnType<Students['deactivate']>>(IPC.students.deactivate, (id) => services().students.deactivate(id))
+  handle<[number], ReturnType<Students['reactivate']>>(IPC.students.reactivate, (id) => services().students.reactivate(id))
+  handle<[number], void>(IPC.students.remove, (id) => services().students.remove(id))
+  handle<[ImportPreviewInput], ReturnType<Students['importPreview']>>(IPC.students.importPreview, (input) =>
+    services().students.importPreview(input)
   )
-  handle<[ImportCommitInput], ReturnType<typeof students.importCommit>>(IPC.students.importCommit, (input) =>
-    students.importCommit(input)
+  handle<[ImportCommitInput], ReturnType<Students['importCommit']>>(IPC.students.importCommit, (input) =>
+    services().students.importCommit(input)
   )
   handle<[], PickedTextFile | null>(IPC.students.pickImportFile, () => pickImportFile())
-  handle<[], string | null>(IPC.students.saveTemplate, () => saveTemplate(students.template()))
+  handle<[], string | null>(IPC.students.saveTemplate, () => saveTemplate(services().students.template()))
 
-  const tests = services.tests
-  handle<[number | undefined], ReturnType<typeof tests.list>>(IPC.tests.list, (sectionId) => tests.list(sectionId))
-  handle<[number], ReturnType<typeof tests.get>>(IPC.tests.get, (id) => tests.get(id))
-  handle<[TestCreateInput], ReturnType<typeof tests.create>>(IPC.tests.create, (input) => tests.create(input))
-  handle<[TestUpdateInput], ReturnType<typeof tests.update>>(IPC.tests.update, (input) => tests.update(input))
-  handle<[TestKeyUpdate], ReturnType<typeof tests.updateKey>>(IPC.tests.updateKey, (input) => tests.updateKey(input))
-  handle<[number], ReturnType<typeof tests.finalize>>(IPC.tests.finalize, (id) => tests.finalize(id))
-  handle<[number], ReturnType<typeof tests.unlock>>(IPC.tests.unlock, (id) => tests.unlock(id))
-  handle<[TestCopyInput], ReturnType<typeof tests.copy>>(IPC.tests.copy, (input) => tests.copy(input))
-  handle<[number], void>(IPC.tests.remove, (id) => tests.remove(id))
+  type Tests = Services['tests']
+  handle<[number | undefined], ReturnType<Tests['list']>>(IPC.tests.list, (sectionId) => services().tests.list(sectionId))
+  handle<[number], ReturnType<Tests['get']>>(IPC.tests.get, (id) => services().tests.get(id))
+  handle<[TestCreateInput], ReturnType<Tests['create']>>(IPC.tests.create, (input) => services().tests.create(input))
+  handle<[TestUpdateInput], ReturnType<Tests['update']>>(IPC.tests.update, (input) => services().tests.update(input))
+  handle<[TestKeyUpdate], ReturnType<Tests['updateKey']>>(IPC.tests.updateKey, (input) => services().tests.updateKey(input))
+  handle<[number], ReturnType<Tests['finalize']>>(IPC.tests.finalize, (id) => services().tests.finalize(id))
+  handle<[number], ReturnType<Tests['unlock']>>(IPC.tests.unlock, (id) => services().tests.unlock(id))
+  handle<[TestCopyInput], ReturnType<Tests['copy']>>(IPC.tests.copy, (input) => services().tests.copy(input))
+  handle<[number], void>(IPC.tests.remove, (id) => services().tests.remove(id))
 
   registerPrintHandlers(services)
   registerScanHandlers(services)
@@ -88,9 +91,9 @@ export function registerIpcHandlers(services: Services, backupHooks: BackupHooks
   registerExportHandlers(services)
   registerBackupHandlers(services, backupHooks)
 
-  handle<[], ReturnType<Services['settings']['get']>>(IPC.settings.get, () => services.settings.get())
+  handle<[], ReturnType<Services['settings']['get']>>(IPC.settings.get, () => services().settings.get())
   handle<[SettingsPatch], ReturnType<Services['settings']['set']>>(IPC.settings.set, (patch) =>
-    services.settings.set(patch)
+    services().settings.set(patch)
   )
 }
 

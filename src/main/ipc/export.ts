@@ -8,9 +8,9 @@ import type { CsvExport } from '../services/export.service'
 import { handle } from './handle'
 
 /** CSV exports: build in ExportService, ask where to save, remember the folder. */
-export function registerExportHandlers(services: Services): void {
-  handle<[number], ExportOutcome | null>(IPC.export.testCsv, (testId) => save(services, services.exports.testCsv(testId)))
-  handle<[number], ExportOutcome | null>(IPC.export.sectionCsv, (sectionId) => save(services, services.exports.sectionCsv(sectionId)))
+export function registerExportHandlers(services: () => Services): void {
+  handle<[number], ExportOutcome | null>(IPC.export.testCsv, (testId) => save(services(), services().exports.testCsv(testId)))
+  handle<[number], ExportOutcome | null>(IPC.export.sectionCsv, (sectionId) => save(services(), services().exports.sectionCsv(sectionId)))
 }
 
 async function save(services: Services, built: CsvExport): Promise<ExportOutcome | null> {

@@ -3,34 +3,26 @@ import { hostname } from 'os'
 import { rmSync } from 'fs'
 import { join } from 'path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { openDatabase, type Db } from './db/database'
-import { createServices, type Services } from './services'
-import { registerIpcHandlers } from './ipc'
+import { DataStore } from './data-store'
+import { registerIpcHandlers, wireScanProgress } from './ipc'
 import { handleScanProtocol, registerScanScheme } from './scan-protocol'
 
 const APP_ID = 'com.jasonash.easygrade'
 const DARK_BACKGROUND = '#14171c'
 
-let db: Db | null = null
-let services: Services | null = null
-/** Set while a restore swaps the database so quit does not try to back up or close a dead handle. */
-let restoring = false
+let store: DataStore | null = null
 
 const DAILY_BACKUP_CHECK_MS = 60 * 60 * 1000
 
 registerScanScheme()
 
-function closeDb(): void {
-  db?.close()
-  db = null
-}
-
 /** Backup on quit and daily while running; failures are logged, never fatal. */
 function backupIfDue(reason: 'quit' | 'daily'): void {
-  if (!services || !db) return
+  if (!store?.isOpen()) return
   try {
-    const due = reason === 'quit' ? services.backup.shouldBackupOnQuit() : services.backup.isDailyBackupDue()
-    if (due) services.backup.create()
+    const backup = store.current.backup
+    const due = reason === 'quit' ? backup.shouldBackupOnQuit() : backup.isDailyBackupDue()
+    if (due) backup.create()
   } catch (err) {
     console.error(`[backup] ${reason} backup failed:`, err)
   }
@@ -85,22 +77,25 @@ app.whenReady().then(() => {
   const scansDir = join(app.getPath('userData'), 'scans')
   const dbPath = join(app.getPath('userData'), 'easygrade.db')
   handleScanProtocol(scansDir)
-  db = openDatabase({ path: dbPath })
-  services = createServices(
-    db,
-    { scansDir, workerPath: join(__dirname, 'scan-worker.js') },
-    { dbPath, scansDir, getDb: () => db, appVersion: app.getVersion(), machineName: hostname() }
-  )
-  registerIpcHandlers(services, {
-    closeDb: () => {
-      restoring = true
-      closeDb()
-    },
-    relaunch: () => {
-      app.relaunch()
-      app.exit(0)
-    }
+  const dataStore = new DataStore({
+    dbPath,
+    scansDir,
+    workerPath: join(__dirname, 'scan-worker.js'),
+    appVersion: app.getVersion(),
+    machineName: hostname()
   })
+  store = dataStore
+  wireScanProgress(dataStore.open())
+  registerIpcHandlers(
+    () => dataStore.current,
+    {
+      restore: (snapshotPath) => {
+        const outcome = dataStore.restore(snapshotPath)
+        wireScanProgress(dataStore.current)
+        return outcome
+      }
+    }
+  )
   setInterval(() => backupIfDue('daily'), DAILY_BACKUP_CHECK_MS)
 
   createWindow()
@@ -116,7 +111,6 @@ app.on('window-all-closed', () => {
 
 app.on('will-quit', () => {
   cleanTempPdfs()
-  if (restoring) return
   backupIfDue('quit')
-  closeDb()
+  store?.close()
 })

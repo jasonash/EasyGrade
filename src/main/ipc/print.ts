@@ -17,19 +17,19 @@ import { handle } from './handle'
  * reliably through webContents.print, and a silent `lp` would skip printer
  * selection, so the OS viewer is the dependable path on every platform.
  */
-export function registerPrintHandlers(services: Services): void {
-  const print = services.print
+export function registerPrintHandlers(services: () => Services): void {
+  const print = (): Services['print'] => services().print
 
   handle<[PrintRequest], PrintOutcome>(IPC.print.preview, async (input) => {
-    const generated = await print.generate(input)
+    const generated = await print().generate(input)
     const path = await writeTemp(generated)
     await openWithSystem(path)
-    return print.outcome(generated, path, null)
+    return print().outcome(generated, path, null)
   })
 
   handle<[PrintRequest], PrintOutcome | null>(IPC.print.savePdf, async (input) => {
-    const generated = await print.generate(input)
-    const settings = services.settings.get()
+    const generated = await print().generate(input)
+    const settings = services().settings.get()
     const win = focusedWindow()
     const options: Electron.SaveDialogOptions = {
       title: 'Save answer sheets',
@@ -39,20 +39,20 @@ export function registerPrintHandlers(services: Services): void {
     const result = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options)
     if (result.canceled || !result.filePath) return null
     await writeFile(result.filePath, generated.buffer)
-    services.settings.set({ lastExportDir: dirname(result.filePath) })
-    const run = print.record(generated)
-    return print.outcome(generated, result.filePath, run)
+    services().settings.set({ lastExportDir: dirname(result.filePath) })
+    const run = print().record(generated)
+    return print().outcome(generated, result.filePath, run)
   })
 
   handle<[PrintRequest], PrintOutcome>(IPC.print.printPdf, async (input) => {
-    const generated = await print.generate(input)
+    const generated = await print().generate(input)
     const path = await writeTemp(generated)
     await openWithSystem(path)
-    const run = print.record(generated)
-    return print.outcome(generated, path, run)
+    const run = print().record(generated)
+    return print().outcome(generated, path, run)
   })
 
-  handle<[number], PrintRun[]>(IPC.print.listRuns, (testId) => print.listRuns(testId))
+  handle<[number], PrintRun[]>(IPC.print.listRuns, (testId) => print().listRuns(testId))
 }
 
 function focusedWindow(): BrowserWindow | undefined {
