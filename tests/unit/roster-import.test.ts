@@ -145,13 +145,13 @@ describe('parseRosterText', () => {
   })
 
   it('strips a UTF-8 BOM before the header', () => {
-    const result = parseRosterText('﻿last_name,first_name\nAdams,Maria')
+    const result = parseRosterText('\uFEFFlast_name,first_name\nAdams,Maria')
     expect(result.hasHeader).toBe(true)
     expect(result.rows[0]).toMatchObject({ lastName: 'Adams', firstName: 'Maria' })
   })
 
   it('reports empty input', () => {
-    expect(parseRosterText('   \n\n').error).toBe('Nothing to import')
+    expect(parseRosterText('   \n\n').error).toBe('Nothing to import: the text is empty')
   })
 
   it('rejects a header without name columns', () => {

@@ -58,14 +58,14 @@ const HEADER_TOKENS: Record<string, Column> = {
 }
 
 export function parseRosterText(text: string): ParsedRoster {
-  const normalized = text.replace(/^﻿/, '').replace(/\r\n?/g, '\n')
+  const normalized = text.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n')
   const lines = normalized.split('\n')
   const nonBlank: { line: number; text: string }[] = []
   lines.forEach((raw, i) => {
     if (raw.trim() !== '') nonBlank.push({ line: i + 1, text: raw })
   })
   if (nonBlank.length === 0) {
-    return { rows: [], delimiter: 'comma', hasHeader: false, error: 'Nothing to import' }
+    return { rows: [], delimiter: 'comma', hasHeader: false, error: 'Nothing to import: the text is empty' }
   }
 
   const delimiter: Delimiter = nonBlank.some((l) => l.text.includes('\t')) ? 'tab' : 'comma'
