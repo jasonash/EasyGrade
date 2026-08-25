@@ -6,6 +6,9 @@ import type {
   ImportPreview,
   ImportPreviewInput,
   PickedTextFile,
+  PrintOutcome,
+  PrintRequest,
+  PrintRun,
   Section,
   SectionInput,
   SectionUpdate,
@@ -69,6 +72,15 @@ export interface EasyGradeApi {
     copy: (input: TestCopyInput) => Promise<ApiResult<Test>>
     remove: (id: number) => Promise<ApiResult<void>>
   }
+  print: {
+    /** Generate to a temp file and open it in the system PDF viewer. No print run is recorded. */
+    preview: (input: PrintRequest) => Promise<ApiResult<PrintOutcome>>
+    /** Generate, ask where to save, write the file, and record the print run. Null when cancelled. */
+    savePdf: (input: PrintRequest) => Promise<ApiResult<PrintOutcome | null>>
+    /** Generate to a temp file, record the print run, and hand the PDF to the system viewer for printing. */
+    printPdf: (input: PrintRequest) => Promise<ApiResult<PrintOutcome>>
+    listRuns: (testId: number) => Promise<ApiResult<PrintRun[]>>
+  }
   settings: {
     get: () => Promise<ApiResult<Settings>>
     set: (patch: SettingsPatch) => Promise<ApiResult<Settings>>
@@ -110,6 +122,12 @@ export const IPC = {
     unlock: 'tests:unlock',
     copy: 'tests:copy',
     remove: 'tests:remove'
+  },
+  print: {
+    preview: 'print:preview',
+    savePdf: 'print:savePdf',
+    printPdf: 'print:printPdf',
+    listRuns: 'print:listRuns'
   },
   settings: {
     get: 'settings:get',
