@@ -82,7 +82,7 @@ export function QuestionCard({ index, count, question, measure, readOnly, onChan
           onChange={(e) => onChange({ ...question, stem: oneLine(e.target.value).slice(0, MAX_STEM_CHARS) })}
           fullWidth
           multiline
-          maxRows={3}
+          rows={3}
           size="small"
           error={badStem.length > 0}
           helperText={
