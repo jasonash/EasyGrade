@@ -376,8 +376,8 @@ jobs:
             | macOS (Intel) | `EasyGrade-*-x64.dmg` |
             | Windows (Installer) | `EasyGrade-Setup-*.exe` |
             | Windows (Portable) | `EasyGrade-Portable-*.exe` |
-            | Linux (AppImage) | `EasyGrade-*-x64.AppImage` |
-            | Linux (Debian) | `EasyGrade-*-x64.deb` |
+            | Linux (AppImage) | `EasyGrade-*-x86_64.AppImage` |
+            | Linux (Debian) | `EasyGrade-*-amd64.deb` |
 
             ### Installation
 
