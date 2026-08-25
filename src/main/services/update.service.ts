@@ -132,9 +132,10 @@ export class UpdateService {
       this.setStatus({ status: 'downloaded', version: info.version, releaseNotes: normalizeReleaseNotes(info.releaseNotes) })
     })
     this.updater.on('error', (error) => {
-      this.log(`updater error: ${error.message}`)
+      const message = errorMessage(error)
+      this.log(`updater error: ${message}`)
       const phase = this.state.status.status === 'downloading' ? 'download' : 'check'
-      this.setStatus({ status: 'error', phase, message: error.message })
+      this.setStatus({ status: 'error', phase, message })
     })
 
     this.startupTimer = setTimeout(() => {
@@ -206,6 +207,11 @@ export class UpdateService {
   }
 }
 
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err)
+const MAX_ERROR_LENGTH = 200
+
+/** First line only, capped: electron-updater errors can carry whole HTTP responses. */
+export function errorMessage(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err)
+  const line = raw.split('\n')[0]?.trim() ?? ''
+  return line.length > MAX_ERROR_LENGTH ? `${line.slice(0, MAX_ERROR_LENGTH - 3)}...` : line
 }

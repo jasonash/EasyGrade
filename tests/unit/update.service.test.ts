@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { UpdateState } from '../../src/shared/types'
 import {
   UpdateService,
+  errorMessage,
   normalizeReleaseNotes,
   updateDisabledReason,
   type Updater,
@@ -162,6 +163,12 @@ describe('UpdateService', () => {
     svc.stop()
     await vi.advanceTimersByTimeAsync(50_000)
     expect(seen.length).toBe(before + 1)
+  })
+
+  it('trims updater errors to a first line of bounded length', () => {
+    expect(errorMessage(new Error('Cannot parse releases feed: 406\nHeaders: {...}\n<feed>...'))).toBe('Cannot parse releases feed: 406')
+    expect(errorMessage('x'.repeat(300))).toHaveLength(200)
+    expect(errorMessage(new Error('  spaced  '))).toBe('spaced')
   })
 
   it('normalizes release notes', () => {

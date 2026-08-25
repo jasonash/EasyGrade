@@ -152,7 +152,8 @@ app.whenReady().then(() => {
 
   // Automatic updates from GitHub Releases; the service itself decides whether
   // this build may update (packaged, not a -dev. build). electron-log writes
-  // updater activity to userData/logs/main.log for field diagnosis.
+  // updater activity to the app's logs folder (~/Library/Logs/EasyGrade on
+  // macOS, %APPDATA%/EasyGrade/logs on Windows) for field diagnosis.
   const { autoUpdater } = electronUpdater
   autoUpdater.logger = log
   updates = new UpdateService({
