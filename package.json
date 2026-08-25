@@ -91,9 +91,10 @@
         ]
       }
     ],
-    "icon": "resources/icon.png",
+    "icon": "build/icon.png",
     "mac": {
       "category": "public.app-category.education",
+      "icon": "build/icon.icns",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
@@ -105,6 +106,7 @@
       ]
     },
     "dmg": {
+      "background": "build/dmg-background.png",
       "window": {
         "width": 540,
         "height": 380
@@ -123,6 +125,7 @@
       ]
     },
     "win": {
+      "icon": "build/icon.png",
       "target": [
         "nsis",
         "portable"
@@ -139,6 +142,7 @@
       "artifactName": "${productName}-Portable-${version}.${ext}"
     },
     "linux": {
+      "icon": "build/icons",
       "target": [
         "AppImage",
         "deb"
