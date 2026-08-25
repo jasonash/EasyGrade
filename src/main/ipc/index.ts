@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog } from 'electron'
+import { app, BrowserWindow, clipboard, dialog } from 'electron'
 import { readFile, writeFile } from 'fs/promises'
 import { basename, join } from 'path'
 import { IPC } from '@shared/ipc'
@@ -40,6 +40,9 @@ export function registerIpcHandlers(services: () => Services, backupHooks: Backu
     platform: process.platform,
     userDataPath: app.getPath('userData')
   }))
+  handle<[string], void>(IPC.app.copyText, (text) => {
+    clipboard.writeText(typeof text === 'string' ? text : '')
+  })
 
   handle<[boolean | undefined], ReturnType<Services['sections']['list']>>(IPC.sections.list, (includeArchived) =>
     services().sections.list(includeArchived ?? false)

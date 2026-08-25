@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Box, Button, Chip, IconButton, Skeleton, Stack, TextField, Tooltip, Typography } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import AddIcon from '@mui/icons-material/Add'
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import LockIcon from '@mui/icons-material/Lock'
 import LockOpenIcon from '@mui/icons-material/LockOpen'
 import PrintIcon from '@mui/icons-material/Print'
@@ -15,6 +16,7 @@ import { useTestsStore } from '@/stores/tests.store'
 import { describeError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { FitMeter } from '@/components/editor/FitMeter'
+import { AiQuestionsDialog } from '@/components/editor/AiQuestionsDialog'
 import { QuestionCard, type EditorQuestion } from '@/components/editor/QuestionCard'
 import { SheetPreview } from '@/components/editor/SheetPreview'
 import { PrintDialog } from '@/components/print/PrintDialog'
@@ -38,6 +40,11 @@ function fromTest(test: Test): EditorState {
   }
 }
 
+/** An untouched question card, as created by "Question" or on a new test. */
+function isBlankQuestion(q: EditorQuestion): boolean {
+  return q.stem.trim() === '' && q.choices.every((c) => c.trim() === '')
+}
+
 function blankQuestion(): EditorQuestion {
   return { key: nextKey++, stem: '', choices: ['', '', '', ''], correctChoice: 0 }
 }
@@ -55,6 +62,7 @@ export function TestEditorPage(): JSX.Element {
   const [busy, setBusy] = useState(false)
   const [unlockOpen, setUnlockOpen] = useState(false)
   const [printOpen, setPrintOpen] = useState(false)
+  const [aiOpen, setAiOpen] = useState(false)
 
   const stateRef = useRef<EditorState | null>(null)
   const dirtyRef = useRef(false)
@@ -309,6 +317,9 @@ export function TestEditorPage(): JSX.Element {
               >
                 Question
               </Button>
+              <Button variant="outlined" startIcon={<AutoAwesomeIcon />} onClick={() => setAiOpen(true)}>
+                Write with AI...
+              </Button>
               <Typography variant="body2" color="text.secondary">
                 {state.questions.length} of {MAX_QUESTIONS}
               </Typography>
@@ -330,6 +341,18 @@ export function TestEditorPage(): JSX.Element {
         </Box>
       </Box>
 
+      <AiQuestionsDialog
+        open={aiOpen}
+        existingCount={state.questions.filter((q) => !isBlankQuestion(q)).length}
+        topic={state.title}
+        onClose={() => setAiOpen(false)}
+        onImport={(imported, mode) => {
+          const kept = mode === 'replace' ? [] : state.questions.filter((q) => !isBlankQuestion(q))
+          const added = imported.map((q) => ({ key: nextKey++, stem: q.stem, choices: [...q.choices], correctChoice: q.correctChoice }))
+          edit({ ...state, questions: [...kept, ...added].slice(0, MAX_QUESTIONS) })
+          toast('success', `${added.length} question${added.length === 1 ? '' : 's'} added. Check the answers and the fit meter.`)
+        }}
+      />
       <PrintDialog
         open={printOpen}
         test={test}

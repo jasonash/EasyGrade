@@ -53,6 +53,8 @@ import type {
 export interface EasyGradeApi {
   app: {
     info: () => Promise<ApiResult<AppInfo>>
+    /** Put text on the system clipboard via the main process (works even when the page lacks focus). */
+    copyText: (text: string) => Promise<ApiResult<void>>
   }
   sections: {
     list: (includeArchived?: boolean) => Promise<ApiResult<Section[]>>
@@ -169,7 +171,7 @@ export interface EasyGradeApi {
 
 /** Channel names, derived so preload and main cannot drift. */
 export const IPC = {
-  app: { info: 'app:info' },
+  app: { info: 'app:info', copyText: 'app:copyText' },
   sections: {
     list: 'sections:list',
     get: 'sections:get',
