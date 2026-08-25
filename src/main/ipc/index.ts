@@ -23,6 +23,7 @@ import type { Services } from '../services'
 import { AppError } from '../services/errors'
 import { handle } from './handle'
 import { registerPrintHandlers } from './print'
+import { registerScanHandlers } from './scan'
 
 const MAX_IMPORT_BYTES = 1_000_000
 
@@ -79,6 +80,7 @@ export function registerIpcHandlers(services: Services): void {
   handle<[number], void>(IPC.tests.remove, (id) => tests.remove(id))
 
   registerPrintHandlers(services)
+  registerScanHandlers(services)
 
   handle<[], ReturnType<Services['settings']['get']>>(IPC.settings.get, () => services.settings.get())
   handle<[SettingsPatch], ReturnType<Services['settings']['set']>>(IPC.settings.set, (patch) =>

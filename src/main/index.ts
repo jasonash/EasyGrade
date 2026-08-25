@@ -49,7 +49,12 @@ app.whenReady().then(() => {
   })
 
   db = openDatabase({ path: join(app.getPath('userData'), 'easygrade.db') })
-  registerIpcHandlers(createServices(db))
+  registerIpcHandlers(
+    createServices(db, {
+      scansDir: join(app.getPath('userData'), 'scans'),
+      workerPath: join(__dirname, 'scan-worker.js')
+    })
+  )
 
   createWindow()
 

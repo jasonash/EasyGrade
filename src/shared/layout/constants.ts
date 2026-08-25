@@ -63,6 +63,8 @@ export const STRIP_HEADER_FONT_SIZE = 9
 export const GRID_TOP = 200
 export const GRID_BOTTOM = 745
 export const GRID_HEIGHT = GRID_BOTTOM - GRID_TOP
+/** Right end of the grid rule lines (the bubble strip plus a little slack). */
+export const GRID_RIGHT = 587
 export const TEXT_COL_X = 50
 export const TEXT_COL_WIDTH = 380
 export const SLOT_PADDING = 6

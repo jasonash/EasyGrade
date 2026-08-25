@@ -11,7 +11,7 @@ import { SectionDetailPage } from '@/pages/SectionDetailPage'
 import { TestsPage } from '@/pages/TestsPage'
 import { TestEditorPage } from '@/pages/TestEditorPage'
 import { SettingsPage } from '@/pages/SettingsPage'
-import { PlaceholderPage } from '@/pages/PlaceholderPage'
+import { GradingPage } from '@/pages/GradingPage'
 
 export function App(): JSX.Element {
   const page = useUiStore((s) => s.page)
@@ -32,9 +32,7 @@ export function App(): JSX.Element {
         {page === 'section-detail' ? <SectionDetailPage /> : null}
         {page === 'tests' ? <TestsPage /> : null}
         {page === 'test-editor' ? <TestEditorPage /> : null}
-        {page === 'grading' ? (
-          <PlaceholderPage title="Grading" subtitle="Import scans and review results" phase="Phase 5" />
-        ) : null}
+        {page === 'grading' ? <GradingPage /> : null}
         {page === 'settings' ? <SettingsPage /> : null}
       </AppShell>
       <Toasts />

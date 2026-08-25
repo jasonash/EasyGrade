@@ -9,6 +9,9 @@ import type {
   PrintOutcome,
   PrintRequest,
   PrintRun,
+  ScanBatch,
+  ScanPage,
+  ScanProgress,
   Section,
   SectionInput,
   SectionUpdate,
@@ -81,6 +84,19 @@ export interface EasyGradeApi {
     printPdf: (input: PrintRequest) => Promise<ApiResult<PrintOutcome>>
     listRuns: (testId: number) => Promise<ApiResult<PrintRun[]>>
   }
+  scan: {
+    /** Open a multi-select file picker for PDFs and images. Resolves null when cancelled. */
+    pickFiles: () => Promise<ApiResult<string[] | null>>
+    /** Import and grade the files as one batch. Resolves when every page has been processed. */
+    importFiles: (paths: string[]) => Promise<ApiResult<ScanBatch>>
+    listBatches: () => Promise<ApiResult<ScanBatch[]>>
+    getBatch: (batchId: number) => Promise<ApiResult<ScanBatch>>
+    listPages: (batchId: number) => Promise<ApiResult<ScanPage[]>>
+    /** Delete a batch, its pages, its images, and results that came from it. */
+    removeBatch: (batchId: number) => Promise<ApiResult<void>>
+    /** Subscribe to progress events; returns an unsubscribe function. */
+    onProgress: (listener: (progress: ScanProgress) => void) => () => void
+  }
   settings: {
     get: () => Promise<ApiResult<Settings>>
     set: (patch: SettingsPatch) => Promise<ApiResult<Settings>>
@@ -128,6 +144,16 @@ export const IPC = {
     savePdf: 'print:savePdf',
     printPdf: 'print:printPdf',
     listRuns: 'print:listRuns'
+  },
+  scan: {
+    pickFiles: 'scan:pickFiles',
+    importFiles: 'scan:importFiles',
+    listBatches: 'scan:listBatches',
+    getBatch: 'scan:getBatch',
+    listPages: 'scan:listPages',
+    removeBatch: 'scan:removeBatch',
+    /** Event channel (main to renderer), not an invoke. */
+    progress: 'scan:progress'
   },
   settings: {
     get: 'settings:get',

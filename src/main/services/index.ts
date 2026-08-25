@@ -1,10 +1,14 @@
 import type { Db } from '../db/database'
 import { PrintRunRepository } from '../db/repositories/print-run.repo'
+import { ResultRepository } from '../db/repositories/result.repo'
+import { ScanRepository } from '../db/repositories/scan.repo'
 import { SectionRepository } from '../db/repositories/section.repo'
 import { SettingsRepository } from '../db/repositories/settings.repo'
 import { StudentRepository } from '../db/repositories/student.repo'
 import { TestRepository } from '../db/repositories/test.repo'
+import { GradingService } from './grading.service'
 import { PdfService } from './pdf.service'
+import { ScanService, type ScanServiceOptions } from './scan.service'
 import { PrintService } from './print.service'
 import { SectionService } from './section.service'
 import { SettingsService } from './settings.service'
@@ -16,18 +20,24 @@ export interface Services {
   students: StudentService
   tests: TestService
   print: PrintService
+  scan: ScanService
+  grading: GradingService
   settings: SettingsService
 }
 
-export function createServices(db: Db): Services {
+export function createServices(db: Db, scanOptions: ScanServiceOptions): Services {
   const sectionRepo = new SectionRepository(db)
   const studentRepo = new StudentRepository(db)
   const testRepo = new TestRepository(db)
+  const resultRepo = new ResultRepository(db)
+  const grading = new GradingService(resultRepo, testRepo)
   return {
     sections: new SectionService(sectionRepo),
     students: new StudentService(studentRepo, sectionRepo),
     tests: new TestService(testRepo, sectionRepo),
     print: new PrintService(testRepo, studentRepo, new PrintRunRepository(db), new PdfService()),
+    scan: new ScanService(new ScanRepository(db), testRepo, studentRepo, resultRepo, grading, scanOptions),
+    grading,
     settings: new SettingsService(new SettingsRepository(db))
   }
 }

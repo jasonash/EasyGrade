@@ -68,6 +68,12 @@ export class StudentRepository {
     return rows.map(toStudent)
   }
 
+  /** Every student in every section, active or not (the scan pipeline resolves QR codes against this). */
+  listAll(): Student[] {
+    const rows = this.db.prepare(`${SELECT}${ORDER}`).all() as StudentRow[]
+    return rows.map(toStudent)
+  }
+
   findById(id: number): Student | null {
     const row = this.db.prepare(`${SELECT} WHERE st.id = ?`).get(id) as StudentRow | undefined
     return row ? toStudent(row) : null
