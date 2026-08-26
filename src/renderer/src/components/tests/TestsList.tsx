@@ -16,8 +16,10 @@ import { PrintDialog } from '@/components/print/PrintDialog'
 interface Props {
   /** Restrict to one section (section detail tab); otherwise show every visible test. */
   sectionId?: number
-  /** Extra filter for the global list (school year). */
+  /** Extra filter for the global list (school year, toolbar). */
   filter?: (test: TestSummary) => boolean
+  /** Present while the toolbar filters are narrowing the list; shown as a Clear filters action when nothing matches. */
+  onClearFilter?: () => void
   /**
    * The New Test dialog is opened from the page header, so the page owns its
    * open state and renders `NewTestButton` there; the list only asks to open
@@ -36,7 +38,7 @@ export function NewTestButton({ onClick }: { onClick: () => void }): JSX.Element
   )
 }
 
-export function TestsList({ sectionId, filter, newTest }: Props): JSX.Element {
+export function TestsList({ sectionId, filter, onClearFilter, newTest }: Props): JSX.Element {
   const { tests, loading, load, create, copy, remove } = useTestsStore()
   const sections = useSectionsStore((s) => s.sections)
   const toast = useUiStore((s) => s.toast)
@@ -52,7 +54,8 @@ export function TestsList({ sectionId, filter, newTest }: Props): JSX.Element {
     void load().catch((err: unknown) => toast('error', describeError(err)))
   }, [load, toast])
 
-  const visible = tests.filter((t) => (sectionId === undefined || t.sectionId === sectionId) && (!filter || filter(t)))
+  const inScope = tests.filter((t) => sectionId === undefined || t.sectionId === sectionId)
+  const visible = inScope.filter((t) => !filter || filter(t))
 
   const createTest = async (values: { sectionId: number; title: string }): Promise<void> => {
     try {
@@ -95,6 +98,22 @@ export function TestsList({ sectionId, filter, newTest }: Props): JSX.Element {
     <>
       {loading && tests.length === 0 ? (
         <Skeleton variant="rounded" height={160} />
+      ) : visible.length === 0 && inScope.length > 0 ? (
+        <EmptyState
+          title="No tests match"
+          description={
+            onClearFilter
+              ? 'Try another section, status, or search, or change the school year in the top bar.'
+              : 'Change the school year in the top bar to see tests from other years.'
+          }
+          action={
+            onClearFilter ? (
+              <Button variant="outlined" onClick={onClearFilter}>
+                Clear filters
+              </Button>
+            ) : undefined
+          }
+        />
       ) : visible.length === 0 ? (
         <EmptyState
           title="No tests yet"
