@@ -15,6 +15,7 @@ export function SectionDetailPage(): JSX.Element {
   const tab = useUiStore((s) => s.sectionTab)
   const setTab = useUiStore((s) => s.setSectionTab)
   const navigate = useUiStore((s) => s.navigate)
+  const closeSection = useUiStore((s) => s.closeSection)
   const toast = useUiStore((s) => s.toast)
   const [exporting, setExporting] = useState(false)
   const [newTestOpen, setNewTestOpen] = useState(false)
@@ -42,7 +43,7 @@ export function SectionDetailPage(): JSX.Element {
     <>
       <PageHeader
         title={section.name}
-        onBack={() => navigate('sections')}
+        onBack={closeSection}
         backLabel="Back to sections"
         chips={
           <>
