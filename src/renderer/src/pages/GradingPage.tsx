@@ -26,7 +26,7 @@ import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { ClickableRow } from '@/components/common/ClickableRow'
-import { attentionCount, useScanStore } from '@/stores/scan.store'
+import { attentionCount, batchAttention, useScanStore } from '@/stores/scan.store'
 import { useUiStore } from '@/stores/ui.store'
 import { describeError } from '@/lib/errors'
 import { formatShortDate } from '@/lib/format'
@@ -61,7 +61,7 @@ export function GradingPage(): JSX.Element {
   }
 
   const attention = attentionCount(batches)
-  const newestWithAttention = batches.find((b) => b.counts.needs_assignment + b.counts.unreadable > 0)
+  const newestWithAttention = batches.find((b) => batchAttention(b) > 0)
 
   const onDelete = (): void => {
     if (!pendingDelete) return
@@ -184,7 +184,7 @@ export function GradingPage(): JSX.Element {
                   <TableCell align="right">{batch.pageCount}</TableCell>
                   <TableCell>
                     {batch.status === 'complete' || batch.status === 'error' ? (
-                      <BucketChips counts={batch.counts} />
+                      <BucketChips counts={batch.counts} toReview={batch.unreviewedCount} />
                     ) : (
                       <Chip size="small" label={batch.status} />
                     )}

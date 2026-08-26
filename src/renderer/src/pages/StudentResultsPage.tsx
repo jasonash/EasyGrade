@@ -1,7 +1,6 @@
 import type { JSX } from 'react'
 import { useCallback, useEffect, useState } from 'react'
 import { Box, Chip, Paper, Skeleton, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material'
-import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import type { StudentResults } from '@shared/types'
 import { useUiStore } from '@/stores/ui.store'
 import { gradingApi } from '@/lib/grading-api'
@@ -13,6 +12,7 @@ import { ClickableRow } from '@/components/common/ClickableRow'
 import { LinkButton } from '@/components/common/LinkButton'
 import { PageHeader } from '@/components/common/PageHeader'
 import { FlagChips } from '@/components/grading/FlagChips'
+import { ReviewedMark } from '@/components/grading/ReviewedMark'
 import { PageReviewDrawer } from '@/components/grading/PageReviewDrawer'
 
 /** Every graded test for one student, reached from the roster. */
@@ -99,7 +99,9 @@ export function StudentResultsPage(): JSX.Element {
                       extra={row.result.overrides.length > 0 ? <Chip size="small" color="info" variant="outlined" label={`${row.result.overrides.length} edited`} /> : null}
                     />
                   </TableCell>
-                  <TableCell align="center">{row.result.reviewed ? <CheckCircleIcon fontSize="small" color="success" /> : null}</TableCell>
+                  <TableCell align="center">
+                    <ReviewedMark reviewed={row.result.reviewed} />
+                  </TableCell>
                 </ClickableRow>
               ))}
             </TableBody>

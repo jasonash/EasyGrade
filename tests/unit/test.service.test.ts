@@ -8,6 +8,7 @@ import { StudentService } from '../../src/main/services/student.service'
 import { DEFAULT_TITLE, TestService } from '../../src/main/services/test.service'
 import { AppError } from '../../src/main/services/errors'
 import { CODE_REGEX } from '../../src/shared/codes'
+import { DEFAULT_INSTRUCTIONS } from '../../src/shared/schemas'
 
 const q = (stem: string, correct = 1) => ({ stem, choices: ['Positive', 'Negative', 'Neutral', 'Varies'], correctChoice: correct })
 
@@ -28,9 +29,10 @@ describe('TestService', () => {
     otherSectionId = sections.create({ name: 'Third Block', schoolYear: '2026-27' }).id
   })
 
-  it('creates a draft with a blank question, a code, and section info', () => {
+  it('creates a draft with default instructions, a blank question, a code, and section info', () => {
     const test = service.create({ sectionId, title: '  ' })
     expect(test.title).toBe(DEFAULT_TITLE)
+    expect(test.instructions).toBe(DEFAULT_INSTRUCTIONS)
     expect(test.code).toMatch(CODE_REGEX)
     expect(test.status).toBe('draft')
     expect(test.layout).toBeNull()

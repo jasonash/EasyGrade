@@ -1,4 +1,4 @@
-import type { JSX } from 'react'
+import { useEffect, useRef, type JSX } from 'react'
 import { Box, Button, Card, CardContent, Chip, IconButton, Radio, RadioGroup, Stack, TextField, Tooltip, Typography } from '@mui/material'
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
@@ -31,6 +31,11 @@ interface Props {
   onChange: (question: EditorQuestion) => void
   onMove: (direction: -1 | 1) => void
   onRemove: () => void
+  /**
+   * Set on a card that was just added: 'scroll' brings it into view when it mounts, 'focus' also
+   * puts the cursor in its question field so typing can start right away.
+   */
+  reveal?: 'scroll' | 'focus'
 }
 
 /** Sheets are single-line per field; newlines become spaces as you type. */
@@ -38,13 +43,23 @@ function oneLine(value: string): string {
   return value.replace(/[\r\n]+/g, ' ')
 }
 
-export function QuestionCard({ index, count, question, measure, readOnly, onChange, onMove, onRemove }: Props): JSX.Element {
+export function QuestionCard({ index, count, question, measure, readOnly, onChange, onMove, onRemove, reveal }: Props): JSX.Element {
   const badStem = unsupportedChars(question.stem)
   const fits = measure?.fits ?? true
   const problem = measure?.problems[0]
+  const cardRef = useRef<HTMLDivElement | null>(null)
+  const stemRef = useRef<HTMLTextAreaElement | null>(null)
 
+  // A card added below the fold would otherwise appear silently; show the whole card, then focus without a second scroll.
+  useEffect(() => {
+    if (!reveal) return
+    cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    if (reveal === 'focus') stemRef.current?.focus({ preventScroll: true })
+  }, [reveal])
+
+  // The scroll margin keeps the "Question" button row below a revealed card on screen too.
   return (
-    <Card variant="outlined" sx={{ borderColor: fits ? 'divider' : 'error.main' }}>
+    <Card ref={cardRef} variant="outlined" sx={{ borderColor: fits ? 'divider' : 'error.main', scrollMarginBottom: 72 }}>
       <CardContent sx={{ '&:last-child': { pb: 2 } }}>
         <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
@@ -79,6 +94,7 @@ export function QuestionCard({ index, count, question, measure, readOnly, onChan
         <TextField
           label="Question"
           value={question.stem}
+          inputRef={stemRef}
           onChange={(e) => onChange({ ...question, stem: oneLine(e.target.value).slice(0, MAX_STEM_CHARS) })}
           fullWidth
           multiline

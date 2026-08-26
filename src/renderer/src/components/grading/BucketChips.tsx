@@ -3,8 +3,8 @@ import { Chip, Stack, Typography } from '@mui/material'
 import type { BucketCounts } from '@shared/types'
 import { BUCKETS } from '@/lib/grading'
 
-/** Compact "27 graded, 2 need assignment" chips for a batch. */
-export function BucketChips({ counts }: { counts: BucketCounts }): JSX.Element {
+/** Compact "27 graded, 2 need assignment, 1 to review" chips for a batch. */
+export function BucketChips({ counts, toReview = 0 }: { counts: BucketCounts; toReview?: number }): JSX.Element {
   const shown = BUCKETS.filter((b) => counts[b.key] > 0)
   if (shown.length === 0) {
     return (
@@ -24,6 +24,7 @@ export function BucketChips({ counts }: { counts: BucketCounts }): JSX.Element {
           label={`${counts[b.key]} ${b.countLabel}`}
         />
       ))}
+      {toReview > 0 ? <Chip size="small" color="warning" variant="outlined" label={`${toReview} to review`} /> : null}
     </Stack>
   )
 }

@@ -144,6 +144,8 @@ export interface ScanBatch {
   importedAt: string
   completedAt: string | null
   counts: BucketCounts
+  /** Graded pages whose result nobody has looked at yet (flagged reads; clean reads start reviewed). */
+  unreviewedCount: number
   /** Files that could not be read at all, with the reason. */
   errors: string[]
   /** Set when the retention purge removed this batch's page images. Results are untouched. */

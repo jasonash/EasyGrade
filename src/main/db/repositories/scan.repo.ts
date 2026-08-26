@@ -240,6 +240,7 @@ export class ScanRepository {
       importedAt: row.imported_at,
       completedAt: row.completed_at,
       counts: this.countsFor(row.id),
+      unreviewedCount: this.unreviewedCountFor(row.id),
       errors: parseJson<string[]>(row.errors_json, []),
       purgedAt: row.purged_at
     }
@@ -272,6 +273,17 @@ export class ScanRepository {
       if (bucket) counts[bucket] = r.n
     }
     return counts
+  }
+
+  /** Graded pages in the batch whose result still carries no reviewed mark. */
+  unreviewedCountFor(batchId: number): number {
+    const row = this.db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM scan_pages p JOIN results r ON r.id = p.result_id
+         WHERE p.batch_id = ? AND p.bucket = 'graded' AND r.reviewed = 0`
+      )
+      .get(batchId) as { n: number }
+    return row.n
   }
 
   insertPage(input: PageInsert): ScanPage {
