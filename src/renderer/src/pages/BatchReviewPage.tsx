@@ -1,7 +1,6 @@
 import type { JSX } from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Alert, Box, Button, Chip, Paper, Skeleton, Stack, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, Tooltip, Typography } from '@mui/material'
-import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import { Alert, Box, Button, Chip, Paper, Skeleton, Stack, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, Typography } from '@mui/material'
 import AssessmentIcon from '@mui/icons-material/Assessment'
 import type { PageBucket, ScanBatch, ScanPageDetail } from '@shared/types'
 import { scanImageUrl } from '@shared/scan-url'
@@ -16,6 +15,7 @@ import { ClickableRow } from '@/components/common/ClickableRow'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { PageHeader } from '@/components/common/PageHeader'
 import { FlagChips } from '@/components/grading/FlagChips'
+import { ReviewedMark } from '@/components/grading/ReviewedMark'
 import { PageReviewDrawer } from '@/components/grading/PageReviewDrawer'
 
 const ATTENTION: PageBucket[] = ['needs_assignment', 'unreadable']
@@ -78,7 +78,6 @@ export function BatchReviewPage(): JSX.Element {
   const visibleIds = useMemo(() => visible.map((p) => p.id), [visible])
   const conflicts = useMemo(() => (tab === 'needs_assignment' ? visible.filter((p) => p.reason === 'conflict') : []), [visible, tab])
   const attention = batch ? batch.counts.needs_assignment + batch.counts.unreadable : 0
-  const flaggedCount = useMemo(() => pages.filter((p) => p.bucket === 'graded' && (p.result?.flags.length ?? 0) > 0).length, [pages])
   const done = !loading && batch !== null && batch.status !== 'processing' && attention === 0 && batch.counts.graded > 0
 
   const runBulk = async (): Promise<void> => {
@@ -152,7 +151,12 @@ export function BatchReviewPage(): JSX.Element {
           }
         >
           Every page in this batch is handled: {batch.counts.graded} graded
-          {flaggedCount > 0 ? `, ${flaggedCount} with flags worth a look` : ''}.
+          {batch.unreviewedCount > 0
+            ? `, ${batch.unreviewedCount} with flags still to review`
+            : batch.counts.graded > 0
+              ? ', all reviewed'
+              : ''}
+          .
         </Alert>
       ) : null}
 
@@ -286,13 +290,7 @@ function PageRowView({ page, graded, onOpen }: { page: ScanPageDetail; graded: b
         )}
       </TableCell>
       {graded ? (
-        <TableCell align="center">
-          {result?.reviewed ? (
-            <Tooltip title="Reviewed">
-              <CheckCircleIcon fontSize="small" color="success" />
-            </Tooltip>
-          ) : null}
-        </TableCell>
+        <TableCell align="center">{result ? <ReviewedMark reviewed={result.reviewed} /> : null}</TableCell>
       ) : null}
     </ClickableRow>
   )

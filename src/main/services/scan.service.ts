@@ -154,7 +154,13 @@ export class ScanService {
 
     if (current) this.results.delete(current.id)
     const qrVersion = page.qrPayload ? parseQrPayload(page.qrPayload)?.layoutVersion : undefined
-    const record = { testId: test.id, studentId: student.id, scanPageId: page.id, layoutVersion: qrVersion ?? test.layoutVersion }
+    const record = {
+      testId: test.id,
+      studentId: student.id,
+      scanPageId: page.id,
+      layoutVersion: qrVersion ?? test.layoutVersion,
+      needsLook: page.alignmentQuality === 'weak' || (qrVersion !== undefined && qrVersion !== test.layoutVersion)
+    }
     const outcome = detected
       ? this.grading.recordFromScan({ ...record, answers: detected })
       : this.grading.recordManual({ ...record, rawAnswers: rawAnswers ?? [] })
@@ -351,7 +357,8 @@ export class ScanService {
       studentId: r.studentId,
       scanPageId: page.id,
       layoutVersion: r.qr?.payload.layoutVersion ?? 1,
-      answers: r.answers
+      answers: r.answers,
+      needsLook: r.flags.includes('weak_alignment') || r.flags.includes('stale_layout')
     })
     if (outcome.conflict) {
       const reason: PageReason = 'conflict'

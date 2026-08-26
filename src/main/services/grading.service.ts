@@ -95,6 +95,11 @@ export interface RecordInput {
   studentId: number
   scanPageId: number
   layoutVersion: number
+  /**
+   * Page-level reasons a person should still look (weak alignment, a stale layout read). A scanned
+   * result starts reviewed only when the read carried no question flags and none of these apply.
+   */
+  needsLook?: boolean
 }
 
 export class GradingService {
@@ -111,20 +116,21 @@ export class GradingService {
     if (existing) return { result: existing, conflict: true }
     const test = this.requireTest(input.testId)
     const score = scoreAnswers(test, input.answers)
-    return { result: this.insert(input, score), conflict: false }
+    const reviewed = score.flags.length === 0 && !input.needsLook
+    return { result: this.insert(input, score, reviewed), conflict: false }
   }
 
-  /** Store answers the teacher typed in for a page whose bubbles could not be read. */
+  /** Store answers the teacher typed in for a page whose bubbles could not be read. Typed by a person, so reviewed. */
   recordManual(input: RecordInput & { rawAnswers: (number | null)[] }): UpsertOutcome {
     const existing = this.results.findByPair(input.testId, input.studentId)
     if (existing) return { result: existing, conflict: true }
     const test = this.requireTest(input.testId)
     const patch = rescore(test, input.rawAnswers, null, [])
     const score: Score = { rawAnswers: input.rawAnswers, correctCount: patch.correctCount, possibleCount: patch.possibleCount, flags: patch.flags }
-    return { result: this.insert(input, score), conflict: false }
+    return { result: this.insert(input, score, true), conflict: false }
   }
 
-  private insert(input: RecordInput, score: Score): GradeResult {
+  private insert(input: RecordInput, score: Score, reviewed: boolean): GradeResult {
     return this.results.insert({
       testId: input.testId,
       studentId: input.studentId,
@@ -134,7 +140,8 @@ export class GradingService {
       finalAnswers: score.rawAnswers,
       correctCount: score.correctCount,
       possibleCount: score.possibleCount,
-      flags: score.flags
+      flags: score.flags,
+      reviewed
     })
   }
 

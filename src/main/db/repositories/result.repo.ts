@@ -77,6 +77,8 @@ export interface ResultInsert {
   correctCount: number
   possibleCount: number
   flags: QuestionFlag[]
+  /** True when nothing on the page needs a person's eyes (clean read, or the teacher typed the answers). */
+  reviewed: boolean
 }
 
 export interface ScorePatch {
@@ -179,7 +181,7 @@ export class ResultRepository {
       .prepare(
         `INSERT INTO results (test_id, student_id, scan_page_id, layout_version, raw_answers_json, final_answers_json,
            correct_count, possible_count, flags_json, reviewed, graded_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         input.testId,
@@ -191,6 +193,7 @@ export class ResultRepository {
         input.correctCount,
         input.possibleCount,
         JSON.stringify(input.flags),
+        input.reviewed ? 1 : 0,
         ts,
         ts
       )

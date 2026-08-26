@@ -57,6 +57,8 @@ describe('ScanService', () => {
     expect(batch.status).toBe('complete')
     expect(batch.pageCount).toBe(4)
     expect(batch.counts).toEqual({ graded: 1, needs_assignment: 2, unreadable: 0, not_a_sheet: 1, discarded: 0 })
+    // The one graded page read cleanly, so it starts reviewed and the batch has nothing left to look at.
+    expect(batch.unreviewedCount).toBe(0)
     expect(batch.errors).toEqual(['broken.pdf: cannot open'])
     expect(batch.sourceDescription).toBe('synthetic.pdf, broken.pdf')
     // The batch list names the tests its pages belong to (the white page has none).

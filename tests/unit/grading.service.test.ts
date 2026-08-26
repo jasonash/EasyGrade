@@ -231,8 +231,32 @@ describe('overrides, reviewed, regrade', () => {
 
   it('setReviewed toggles the flag', () => {
     const resultId = graded.resultId ?? 0
-    expect(h.grading.setReviewed({ resultId, reviewed: true }).reviewed).toBe(true)
     expect(h.grading.setReviewed({ resultId, reviewed: false }).reviewed).toBe(false)
+    expect(h.grading.setReviewed({ resultId, reviewed: true }).reviewed).toBe(true)
+  })
+
+  it('a clean read starts reviewed; flags, weak alignment, and stale layouts leave it for a person; typed answers count as reviewed', () => {
+    // The imported synthetic page read cleanly, so nobody needs to look at it.
+    expect(graded.result?.flags).toEqual([])
+    expect(graded.result?.reviewed).toBe(true)
+
+    const clean: DetectedRow[] = SYN_KEY.map((choice, q) => ({ q, state: 'filled', choice, fills: [], confidence: 0.9 }))
+    const flagged = clean.map((row) => (row.q === 2 ? { ...row, state: 'multiple' as const, choice: null } : row))
+    const base = { testId: h.testId, layoutVersion: 1 }
+
+    const withFlag = h.grading.recordFromScan({ ...base, studentId: h.otherStudentId, scanPageId: duplicate.id, answers: flagged })
+    expect(withFlag.result?.flags).toEqual([{ q: 2, kind: 'multiple' }])
+    expect(withFlag.result?.reviewed).toBe(false)
+
+    const weakStudent = h.students.create({ sectionId: h.sectionId, lastName: 'Weak', firstName: 'Wanda' }).id
+    const weak = h.grading.recordFromScan({ ...base, studentId: weakStudent, scanPageId: blankSheet.id, answers: clean, needsLook: true })
+    expect(weak.result?.flags).toEqual([])
+    expect(weak.result?.reviewed).toBe(false)
+
+    const typedStudent = h.students.create({ sectionId: h.sectionId, lastName: 'Typed', firstName: 'Tom' }).id
+    const typed = h.grading.recordManual({ ...base, studentId: typedStudent, scanPageId: white.id, rawAnswers: SYN_KEY.map((c, q) => (q === 0 ? null : c)) })
+    expect(typed.result?.flags).toEqual([{ q: 0, kind: 'blank' }])
+    expect(typed.result?.reviewed).toBe(true)
   })
 
   it('changing the key regrades existing results and keeps overrides', () => {

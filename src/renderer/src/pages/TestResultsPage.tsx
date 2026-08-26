@@ -22,7 +22,6 @@ import {
   Tooltip,
   Typography
 } from '@mui/material'
-import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import DoneAllIcon from '@mui/icons-material/DoneAll'
 import DownloadIcon from '@mui/icons-material/Download'
 import EditIcon from '@mui/icons-material/Edit'
@@ -33,6 +32,7 @@ import UploadFileIcon from '@mui/icons-material/UploadFile'
 import type { TestResults } from '@shared/types'
 import { useUiStore } from '@/stores/ui.store'
 import { useTestsStore } from '@/stores/tests.store'
+import { useScanStore } from '@/stores/scan.store'
 import { api, unwrap } from '@/api'
 import { gradingApi } from '@/lib/grading-api'
 import { describeError } from '@/lib/errors'
@@ -43,6 +43,7 @@ import { ClickableRow } from '@/components/common/ClickableRow'
 import { LinkButton } from '@/components/common/LinkButton'
 import { PageHeader } from '@/components/common/PageHeader'
 import { FlagChips } from '@/components/grading/FlagChips'
+import { ReviewedMark } from '@/components/grading/ReviewedMark'
 import { PageReviewDrawer } from '@/components/grading/PageReviewDrawer'
 import { PrintDialog } from '@/components/print/PrintDialog'
 
@@ -81,8 +82,10 @@ export function TestResultsPage(): JSX.Element {
       .finally(() => setLoading(false))
   }, [load, toast, closeResults])
 
+  // Reviewed marks feed the Grading badge, so the batch list reloads alongside the results.
+  const reloadBatches = useScanStore((s) => s.load)
   const refresh = (): void => {
-    void load().catch((err: unknown) => toast('error', describeError(err)))
+    void Promise.all([load(), reloadBatches()]).catch((err: unknown) => toast('error', describeError(err)))
   }
 
   const exportCsv = (): void => {
@@ -117,7 +120,7 @@ export function TestResultsPage(): JSX.Element {
     void Promise.all(pending.map((r) => gradingApi.setReviewed({ resultId: r.result.id, reviewed: true })))
       .then(() => {
         toast('success', `Marked ${pending.length} result${pending.length === 1 ? '' : 's'} reviewed`)
-        return load()
+        return Promise.all([load(), reloadBatches()])
       })
       .catch((err: unknown) => toast('error', describeError(err)))
       .finally(() => setBusy(false))
@@ -303,7 +306,9 @@ export function TestResultsPage(): JSX.Element {
                       <TableCell>
                         <FlagChips flags={row.result.flags} />
                       </TableCell>
-                      <TableCell align="center">{row.result.reviewed ? <CheckCircleIcon fontSize="small" color="success" /> : null}</TableCell>
+                      <TableCell align="center">
+                        <ReviewedMark reviewed={row.result.reviewed} />
+                      </TableCell>
                     </ClickableRow>
                   ))}
                 </TableBody>

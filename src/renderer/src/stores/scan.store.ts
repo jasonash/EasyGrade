@@ -21,9 +21,14 @@ interface ScanState {
   subscribe: () => () => void
 }
 
+/** Pages needing a teacher's attention in one batch: unassigned, unreadable, or graded with something to look at. */
+export function batchAttention(b: ScanBatch): number {
+  return b.counts.needs_assignment + b.counts.unreadable + b.unreviewedCount
+}
+
 /** Pages needing a teacher's attention across every batch (shown on the Grading nav item). */
 export function attentionCount(batches: ScanBatch[]): number {
-  return batches.reduce((sum, b) => sum + b.counts.needs_assignment + b.counts.unreadable, 0)
+  return batches.reduce((sum, b) => sum + batchAttention(b), 0)
 }
 
 export const useScanStore = create<ScanState>((set, get) => ({
