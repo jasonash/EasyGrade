@@ -55,6 +55,8 @@ export interface EasyGradeApi {
     info: () => Promise<ApiResult<AppInfo>>
     /** Put text on the system clipboard via the main process (works even when the page lacks focus). */
     copyText: (text: string) => Promise<ApiResult<void>>
+    /** Scale the whole window (the Text size setting). Handled in the preload, no round trip to main. */
+    setZoomFactor: (factor: number) => void
   }
   sections: {
     list: (includeArchived?: boolean) => Promise<ApiResult<Section[]>>

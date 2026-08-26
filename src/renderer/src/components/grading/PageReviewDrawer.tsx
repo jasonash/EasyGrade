@@ -14,6 +14,7 @@ import { gradingApi } from '@/lib/grading-api'
 import { describeError } from '@/lib/errors'
 import { BUCKETS, formatPercent, percentOf } from '@/lib/grading'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { Code } from '@/components/common/Code'
 import { AnswerRows } from './AnswerRows'
 import { AssignPanel } from './AssignPanel'
 import { PageImage } from './PageImage'
@@ -161,7 +162,7 @@ export function PageReviewDrawer({ pageId, onClose, onChanged }: Props): JSX.Ele
       <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
         <Stack direction="row" alignItems="flex-start" spacing={1} sx={{ mb: 1 }}>
           <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-            <Typography variant="h6" noWrap>
+            <Typography variant="h6" noWrap role="status" aria-live="polite">
               {page ? `Page ${page.pageIndex + 1}` : 'Page'}
               {page?.studentName ? ` · ${page.studentName}` : ''}
               {score ? ` · ${score} (${percent})` : ''}
@@ -198,8 +199,8 @@ export function PageReviewDrawer({ pageId, onClose, onChanged }: Props): JSX.Ele
             <Box sx={{ position: { md: 'sticky' }, top: 0 }}>
               <PageImage page={page} layout={test?.layout ?? null} answers={overlay.answers} answerKey={overlay.answerKey} flagged={overlay.flagged} />
               {page.qrPayload ? (
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontFamily: 'monospace' }}>
-                  {page.qrPayload}
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  <Code>{page.qrPayload}</Code>
                 </Typography>
               ) : null}
             </Box>

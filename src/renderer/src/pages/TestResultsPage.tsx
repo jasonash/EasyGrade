@@ -157,11 +157,7 @@ export function TestResultsPage(): JSX.Element {
                   </TableCell>
                 ))}
                 <TableCell>Flags</TableCell>
-                <TableCell align="center" width={48}>
-                  <Tooltip title="Reviewed">
-                    <CheckCircleIcon fontSize="inherit" />
-                  </Tooltip>
-                </TableCell>
+                <TableCell align="center">Reviewed</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>

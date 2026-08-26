@@ -1,11 +1,12 @@
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
+import { contextBridge, ipcRenderer, webFrame, type IpcRendererEvent } from 'electron'
 import { IPC, type EasyGradeApi } from '@shared/ipc'
 import type { ScanProgress, UpdateState } from '@shared/types'
 
 const api: EasyGradeApi = {
   app: {
     info: () => ipcRenderer.invoke(IPC.app.info),
-    copyText: (text) => ipcRenderer.invoke(IPC.app.copyText, text)
+    copyText: (text) => ipcRenderer.invoke(IPC.app.copyText, text),
+    setZoomFactor: (factor) => webFrame.setZoomFactor(factor)
   },
   sections: {
     list: (includeArchived) => ipcRenderer.invoke(IPC.sections.list, includeArchived),

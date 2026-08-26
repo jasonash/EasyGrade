@@ -87,10 +87,11 @@ export function GradingPage(): JSX.Element {
 
       {importing ? (
         <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1 }} aria-live="polite">
             {progressLabel(progress)}
           </Typography>
           <LinearProgress
+            aria-label="Import progress"
             variant={progress && progress.pagesTotal > 0 ? 'determinate' : 'indeterminate'}
             value={progress && progress.pagesTotal > 0 ? (100 * progress.pagesDone) / progress.pagesTotal : 0}
           />
@@ -163,6 +164,7 @@ export function GradingPage(): JSX.Element {
                       <span>
                         <IconButton
                           size="small"
+                          aria-label="Delete batch"
                           onClick={(e) => {
                             e.stopPropagation()
                             setPendingDelete(batch)

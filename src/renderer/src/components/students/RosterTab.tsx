@@ -32,6 +32,7 @@ import { useUiStore } from '@/stores/ui.store'
 import { describeError } from '@/lib/errors'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { Code } from '@/components/common/Code'
 import { StudentDialog, type StudentFormValues } from './StudentDialog'
 import { MoveStudentDialog } from './MoveStudentDialog'
 import { ImportDialog, type ImportSource } from './ImportDialog'
@@ -87,14 +88,26 @@ export function RosterTab({ section }: Props): JSX.Element {
     if (ok) setStudentDialog({ open: false, student: null })
   }
 
+  const reactivate = (student: Student): Promise<boolean> =>
+    run(async () => {
+      await store.getState().reactivate(student.id)
+    }, 'Student reactivated')
+
   const toggleActive = async (student: Student): Promise<void> => {
-    await run(
-      async () => {
-        if (student.active) await store.getState().deactivate(student.id)
-        else await store.getState().reactivate(student.id)
-      },
-      student.active ? 'Student deactivated' : 'Student reactivated'
-    )
+    if (!student.active) {
+      await reactivate(student)
+      return
+    }
+    // Deactivating hides the row, so offer the way back on the toast itself.
+    const ok = await run(async () => {
+      await store.getState().deactivate(student.id)
+    })
+    if (ok) {
+      toast('success', `${student.firstName} ${student.lastName} deactivated`, {
+        label: 'Undo',
+        onClick: () => void reactivate(student)
+      })
+    }
   }
 
   const confirmDelete = async (): Promise<void> => {
@@ -219,9 +232,7 @@ export function RosterTab({ section }: Props): JSX.Element {
                   <TableCell>{student.firstName}</TableCell>
                   <TableCell>{student.studentNumber ?? ''}</TableCell>
                   <TableCell>
-                    <Typography component="span" sx={{ fontFamily: 'monospace', letterSpacing: 1 }}>
-                      {student.code}
-                    </Typography>
+                    <Code>{student.code}</Code>
                   </TableCell>
                   <TableCell>
                     {student.active ? (
