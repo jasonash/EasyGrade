@@ -1,4 +1,4 @@
-import type { JSX } from 'react'
+import type { JSX, KeyboardEvent } from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Box, Button, Chip, Divider, Drawer, IconButton, Skeleton, Stack, Tooltip, Typography } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
@@ -6,6 +6,9 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore'
+import NavigateNextIcon from '@mui/icons-material/NavigateNext'
+import AssessmentIcon from '@mui/icons-material/Assessment'
 import type { ScanPageDetail, Test } from '@shared/types'
 import { api, unwrap } from '@/api'
 import { useScanStore } from '@/stores/scan.store'
@@ -21,19 +24,33 @@ import { PageImage } from './PageImage'
 
 interface Props {
   pageId: number | null
+  /**
+   * The pages the drawer can step through, in list order. With this and
+   * `onNavigate`, the header gets Previous / Next (also the arrow keys) and
+   * finishing a page moves on to the next one instead of staying put.
+   */
+  pageIds?: number[]
+  onNavigate?: (pageId: number) => void
   onClose: () => void
   /** Anything changed (override, assignment, discard); lists behind the drawer should refresh. */
   onChanged: () => void
+}
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
 }
 
 /**
  * Right-hand drawer for one scanned page. Graded pages show the answer rows
  * with override controls; everything else shows the assignment panel.
  */
-export function PageReviewDrawer({ pageId, onClose, onChanged }: Props): JSX.Element {
+export function PageReviewDrawer({ pageId, pageIds, onNavigate, onClose, onChanged }: Props): JSX.Element {
   const getPage = useScanStore((s) => s.getPage)
   const discardPage = useScanStore((s) => s.discardPage)
   const toast = useUiStore((s) => s.toast)
+  const uiPage = useUiStore((s) => s.page)
+  const openTestResults = useUiStore((s) => s.openTestResults)
 
   const [page, setPage] = useState<ScanPageDetail | null>(null)
   const [test, setTest] = useState<Test | null>(null)
@@ -81,6 +98,24 @@ export function PageReviewDrawer({ pageId, onClose, onChanged }: Props): JSX.Ele
     }
   }, [pageId, load, toast, onClose])
 
+  // Position in the list, when there is one.
+  const index = pageId !== null && pageIds ? pageIds.indexOf(pageId) : -1
+  const prevId = index > 0 ? (pageIds?.[index - 1] ?? null) : null
+  const nextId = pageIds && index >= 0 && index < pageIds.length - 1 ? (pageIds[index + 1] ?? null) : null
+  const canStep = pageIds !== undefined && onNavigate !== undefined && index >= 0
+
+  /**
+   * After a page is finished (assigned, resolved, discarded, marked reviewed)
+   * move to the next one in the list; on the last page close the drawer. The
+   * next id is taken before the change so it does not matter that the finished
+   * page may drop out of the list once the parent refreshes.
+   */
+  const advanceFrom = (next: number | null): void => {
+    if (!canStep) return
+    if (next !== null && onNavigate) onNavigate(next)
+    else onClose()
+  }
+
   const result = page?.result ?? null
   const reviewMode = page?.bucket === 'graded' && result !== null && test !== null && !reassign
 
@@ -116,12 +151,15 @@ export function PageReviewDrawer({ pageId, onClose, onChanged }: Props): JSX.Ele
 
   const toggleReviewed = (): void => {
     if (!result) return
+    const next = nextId
+    const marking = !result.reviewed
     setBusy(true)
     void gradingApi
-      .setReviewed({ resultId: result.id, reviewed: !result.reviewed })
+      .setReviewed({ resultId: result.id, reviewed: marking })
       .then((updated) => {
         setPage((prev) => (prev ? { ...prev, result: updated } : prev))
         onChanged()
+        if (marking) advanceFrom(next)
       })
       .catch((err: unknown) => toast('error', describeError(err)))
       .finally(() => setBusy(false))
@@ -129,6 +167,7 @@ export function PageReviewDrawer({ pageId, onClose, onChanged }: Props): JSX.Ele
 
   const discard = (): void => {
     if (!page) return
+    const next = nextId
     setBusy(true)
     void discardPage(page.id)
       .then((updated) => {
@@ -136,20 +175,45 @@ export function PageReviewDrawer({ pageId, onClose, onChanged }: Props): JSX.Ele
         setPage(updated)
         toast('info', 'Page discarded')
         onChanged()
+        advanceFrom(next)
       })
       .catch((err: unknown) => toast('error', describeError(err)))
       .finally(() => setBusy(false))
   }
 
   const afterAssign = (updated: ScanPageDetail): void => {
+    const next = nextId
     setReassign(false)
     onChanged()
+    if (canStep) {
+      advanceFrom(next)
+      return
+    }
     void load(updated.id).catch((err: unknown) => toast('error', describeError(err)))
+  }
+
+  const afterDiscardFromPanel = (updated: ScanPageDetail): void => {
+    const next = nextId
+    setPage(updated)
+    onChanged()
+    advanceFrom(next)
+  }
+
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
+    if (!canStep || isTypingTarget(event.target)) return
+    if (event.key === 'ArrowRight' && nextId !== null && onNavigate) {
+      event.preventDefault()
+      onNavigate(nextId)
+    } else if (event.key === 'ArrowLeft' && prevId !== null && onNavigate) {
+      event.preventDefault()
+      onNavigate(prevId)
+    }
   }
 
   const bucketMeta = page ? BUCKETS.find((b) => b.key === page.bucket) : undefined
   const score = result ? `${result.correctCount}/${result.possibleCount}` : null
   const percent = result ? formatPercent(percentOf(result.correctCount, result.possibleCount)) : ''
+  const showResultsLink = page?.bucket === 'graded' && page.testId !== null && uiPage !== 'test-results'
 
   return (
     <Drawer
@@ -157,7 +221,7 @@ export function PageReviewDrawer({ pageId, onClose, onChanged }: Props): JSX.Ele
       open={pageId !== null}
       onClose={onClose}
       sx={{ zIndex: (theme) => theme.zIndex.modal }}
-      slotProps={{ paper: { sx: { width: { xs: '100vw', md: 940 }, maxWidth: '100vw' } } }}
+      slotProps={{ paper: { sx: { width: { xs: '100vw', md: 940 }, maxWidth: '100vw' }, onKeyDown } }}
     >
       <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
         <Stack direction="row" alignItems="flex-start" spacing={1} sx={{ mb: 1 }}>
@@ -172,6 +236,40 @@ export function PageReviewDrawer({ pageId, onClose, onChanged }: Props): JSX.Ele
               {page?.sectionName ? ` · ${page.sectionName}` : ''}
             </Typography>
           </Box>
+          {showResultsLink && page ? (
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<AssessmentIcon />}
+              onClick={() => {
+                if (page.testId !== null) openTestResults(page.testId)
+              }}
+              sx={{ whiteSpace: 'nowrap', mt: 0.5 }}
+            >
+              Class results
+            </Button>
+          ) : null}
+          {canStep && pageIds ? (
+            <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mt: 0.25 }}>
+              <Tooltip title="Previous page (left arrow)">
+                <span>
+                  <IconButton onClick={() => prevId !== null && onNavigate?.(prevId)} disabled={prevId === null} aria-label="Previous page">
+                    <NavigateBeforeIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                {index + 1} of {pageIds.length}
+              </Typography>
+              <Tooltip title="Next page (right arrow)">
+                <span>
+                  <IconButton onClick={() => nextId !== null && onNavigate?.(nextId)} disabled={nextId === null} aria-label="Next page">
+                    <NavigateNextIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Stack>
+          ) : null}
           <IconButton onClick={onClose} aria-label="Close review" edge="end">
             <CloseIcon />
           </IconButton>
@@ -218,7 +316,7 @@ export function PageReviewDrawer({ pageId, onClose, onChanged }: Props): JSX.Ele
                       onClick={toggleReviewed}
                       disabled={busy}
                     >
-                      {result.reviewed ? 'Reviewed' : 'Mark reviewed'}
+                      {result.reviewed ? 'Reviewed' : canStep && nextId !== null ? 'Mark reviewed, next' : 'Mark reviewed'}
                     </Button>
                     <Button variant="outlined" startIcon={<SwapHorizIcon />} onClick={() => setReassign(true)} disabled={busy}>
                       Reassign
@@ -235,10 +333,7 @@ export function PageReviewDrawer({ pageId, onClose, onChanged }: Props): JSX.Ele
                   page={page}
                   reassign={reassign}
                   onAssigned={afterAssign}
-                  onDiscarded={(updated) => {
-                    setPage(updated)
-                    onChanged()
-                  }}
+                  onDiscarded={afterDiscardFromPanel}
                   onCancel={reassign ? () => setReassign(false) : undefined}
                 />
               )}

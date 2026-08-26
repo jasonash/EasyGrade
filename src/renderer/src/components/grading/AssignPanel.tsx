@@ -29,6 +29,8 @@ import { useUiStore } from '@/stores/ui.store'
 import { gradingApi } from '@/lib/grading-api'
 import { describeError } from '@/lib/errors'
 import { canReadBubbles, choiceLetter, describePage, flagLabel } from '@/lib/grading'
+import { formatShortDate } from '@/lib/format'
+import { ANSWER_GROUP_SX } from './AnswerRows'
 import { ConflictDialog } from './ConflictDialog'
 
 interface Props {
@@ -205,17 +207,31 @@ export function AssignPanel({ page, reassign = false, onAssigned, onDiscarded, o
   const canAssign = testId !== null && studentId !== null && test !== null && !busy && (!manual || answers.length === test.questions.length)
 
   if (importConflict && !someoneElse) {
+    // What would be lost by replacing: hand edits and the reviewed mark.
+    const edits = existing?.overrides.length ?? 0
+    const existingDetail = existing
+      ? [`Graded ${formatShortDate(existing.gradedAt)}`, edits > 0 ? `${edits} edited` : null, existing.reviewed ? 'reviewed' : null]
+          .filter(Boolean)
+          .join(', ')
+      : undefined
     return (
       <Stack spacing={2}>
         <Alert severity="warning">{description}</Alert>
         {existing ? (
           <Stack direction="row" spacing={2}>
-            <ScoreCard title="Existing result" thumb={existingPage?.thumbPath ?? null} version={existingPage?.processedAt ?? null} score={`${existing.correctCount}/${existing.possibleCount}`} />
+            <ScoreCard
+              title="Existing result"
+              thumb={existingPage?.thumbPath ?? null}
+              version={existingPage?.processedAt ?? null}
+              score={`${existing.correctCount}/${existing.possibleCount}`}
+              detail={existingDetail}
+            />
             <ScoreCard
               title="This page"
               thumb={page.thumbPath}
               version={page.processedAt}
               score={detectedSummary ? `${detectedSummary.filled}/${detectedSummary.total} bubbles filled` : 'Not read'}
+              detail={`Page ${page.pageIndex + 1} of this batch`}
             />
           </Stack>
         ) : null}
@@ -224,7 +240,7 @@ export function AssignPanel({ page, reassign = false, onAssigned, onDiscarded, o
             Keep existing
           </Button>
           <Button variant="contained" color="warning" onClick={() => resolve('replace')} disabled={busy}>
-            Replace with this page
+            {edits > 0 ? `Replace (drops ${edits} edit${edits === 1 ? '' : 's'})` : 'Replace with this page'}
           </Button>
           <Button onClick={() => setSomeoneElse(true)} disabled={busy}>
             This is someone else's sheet...
@@ -251,7 +267,8 @@ export function AssignPanel({ page, reassign = false, onAssigned, onDiscarded, o
         <Select
           labelId="assign-test-label"
           label="Test"
-          value={testId ?? ''}
+          // Until the test list has loaded the page's test is not an option yet; MUI warns on an out-of-range value.
+          value={testId !== null && finalized.some((t) => t.id === testId) ? testId : ''}
           onChange={(e) => {
             const next = Number(e.target.value)
             setTestId(Number.isFinite(next) && next > 0 ? next : null)
@@ -330,19 +347,21 @@ export function AssignPanel({ page, reassign = false, onAssigned, onDiscarded, o
                   <ToggleButtonGroup
                     exclusive
                     size="small"
+                    color="primary"
                     value={answers[q] === null || answers[q] === undefined ? BLANK : String(answers[q])}
                     onChange={(_, next: string | null) => {
                       if (next === null) return
                       setAnswers((prev) => prev.map((a, i) => (i === q ? (next === BLANK ? null : Number(next)) : a)))
                     }}
                     aria-label={`Answer for question ${q + 1}`}
+                    sx={ANSWER_GROUP_SX}
                   >
                     {question.choices.map((_, c) => (
-                      <ToggleButton key={c} value={String(c)} sx={{ px: 1.25, py: 0.25, minWidth: 34 }}>
+                      <ToggleButton key={c} value={String(c)} sx={{ px: 1.25, py: 0.5, minWidth: 36 }}>
                         {CHOICE_LETTERS[c]}
                       </ToggleButton>
                     ))}
-                    <ToggleButton value={BLANK} sx={{ px: 1.25, py: 0.25 }}>
+                    <ToggleButton value={BLANK} sx={{ px: 1.25, py: 0.5 }}>
                       Blank
                     </ToggleButton>
                   </ToggleButtonGroup>
@@ -415,7 +434,19 @@ function CropCard({ label, src, flex }: { label: string; src: string; flex: numb
   )
 }
 
-function ScoreCard({ title, thumb, version, score }: { title: string; thumb: string | null; version: string | null; score: string }): JSX.Element {
+function ScoreCard({
+  title,
+  thumb,
+  version,
+  score,
+  detail
+}: {
+  title: string
+  thumb: string | null
+  version: string | null
+  score: string
+  detail?: string
+}): JSX.Element {
   return (
     <Box sx={{ flex: 1, minWidth: 0 }}>
       <Typography variant="subtitle2">{title}</Typography>
@@ -425,6 +456,11 @@ function ScoreCard({ title, thumb, version, score }: { title: string; thumb: str
       <Typography variant="body2" sx={{ mt: 0.5, fontWeight: 600 }}>
         {score}
       </Typography>
+      {detail ? (
+        <Typography variant="caption" color="text.secondary">
+          {detail}
+        </Typography>
+      ) : null}
     </Box>
   )
 }

@@ -25,6 +25,7 @@ import { useSectionsStore } from '@/stores/sections.store'
 import { useUiStore } from '@/stores/ui.store'
 import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState } from '@/components/common/EmptyState'
+import { ClickableRow } from '@/components/common/ClickableRow'
 import { SectionDialog } from '@/components/sections/SectionDialog'
 import { useSchoolYearFilter } from '@/lib/schoolYear'
 import { describeError as describe } from '@/lib/errors'
@@ -133,12 +134,7 @@ export function SectionsPage(): JSX.Element {
             </TableHead>
             <TableBody>
               {visible.map((section) => (
-                <TableRow
-                  key={section.id}
-                  hover
-                  onClick={() => openSection(section.id)}
-                  sx={{ cursor: 'pointer' }}
-                >
+                <ClickableRow key={section.id} onOpen={() => openSection(section.id)} label={`Open ${section.name}`}>
                   <TableCell>
                     <Stack direction="row" spacing={1} alignItems="center">
                       <Typography>{section.name}</Typography>
@@ -160,7 +156,7 @@ export function SectionsPage(): JSX.Element {
                       <MoreVertIcon fontSize="small" />
                     </IconButton>
                   </TableCell>
-                </TableRow>
+                </ClickableRow>
               ))}
             </TableBody>
           </Table>

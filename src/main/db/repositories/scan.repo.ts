@@ -3,6 +3,7 @@ import { nowIso } from '../database'
 import type {
   AlignmentQuality,
   BatchStatus,
+  BatchTest,
   BucketCounts,
   DetectedRow,
   PageBucket,
@@ -214,10 +215,26 @@ export class ScanRepository {
     return this.db.prepare('DELETE FROM scan_batches WHERE id = ?').run(id).changes > 0
   }
 
+  private testsFor(batchId: number): BatchTest[] {
+    const rows = this.db
+      .prepare(
+        `SELECT t.id, t.title, s.name AS section_name, COUNT(*) AS pages
+         FROM scan_pages p
+         JOIN tests t ON t.id = p.test_id
+         JOIN sections s ON s.id = t.section_id
+         WHERE p.batch_id = ? AND (p.bucket IS NULL OR p.bucket != 'discarded')
+         GROUP BY t.id
+         ORDER BY pages DESC, t.title`
+      )
+      .all(batchId) as { id: number; title: string; section_name: string; pages: number }[]
+    return rows.map((r) => ({ id: r.id, title: r.title, sectionName: r.section_name, pages: r.pages }))
+  }
+
   private toBatch(row: BatchRow): ScanBatch {
     return {
       id: row.id,
       sourceDescription: row.source_description,
+      tests: this.testsFor(row.id),
       pageCount: row.page_count,
       status: toStatus(row.status),
       importedAt: row.imported_at,
