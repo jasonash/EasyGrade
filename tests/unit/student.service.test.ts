@@ -34,6 +34,22 @@ describe('StudentService', () => {
     expect(sections.get(sectionId).studentCount).toBe(2)
   })
 
+  it('refuses a student number already used in the section, except by the same student', () => {
+    const a = service.create({ sectionId, lastName: 'Adams', firstName: 'Maria', studentNumber: '100234' })
+    expect(() => service.create({ sectionId, lastName: 'Adams', firstName: 'Marie', studentNumber: ' 100234 ' })).toThrow(
+      'Adams, Maria already has student number 100234'
+    )
+    // Inactive students still hold their number.
+    service.deactivate(a.id)
+    expect(() => service.create({ sectionId, lastName: 'Other', firstName: 'Kid', studentNumber: '100234' })).toThrow(AppError)
+    // Another section may reuse it, and the student may keep their own.
+    expect(service.create({ sectionId: otherSectionId, lastName: 'Adams', firstName: 'Maria', studentNumber: '100234' }).studentNumber).toBe('100234')
+    expect(service.update({ id: a.id, studentNumber: '100234', lastName: 'Adams-Lee' }).lastName).toBe('Adams-Lee')
+    const b = service.create({ sectionId, lastName: 'Baker', firstName: 'Devon' })
+    expect(() => service.update({ id: b.id, studentNumber: '100234' })).toThrow(AppError)
+    expect(service.update({ id: b.id, studentNumber: '' }).studentNumber).toBeNull()
+  })
+
   it('retries when a generated code collides', () => {
     const codes = ['AAAAAA', 'AAAAAA', 'AAAAAA', 'BBBBBB']
     const repo = new StudentRepository(db, () => codes.shift() ?? 'CCCCCC')

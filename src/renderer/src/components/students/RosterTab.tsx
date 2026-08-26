@@ -233,6 +233,9 @@ export function RosterTab({ section }: Props): JSX.Element {
               <Button variant="outlined" startIcon={<UploadIcon />} onClick={() => void importCsv()}>
                 Import CSV
               </Button>
+              <Button variant="outlined" startIcon={<ContentPasteIcon />} onClick={() => setImportSource({ kind: 'paste' })}>
+                Paste from spreadsheet
+              </Button>
             </Stack>
           }
         />
@@ -351,6 +354,7 @@ export function RosterTab({ section }: Props): JSX.Element {
       <StudentDialog
         open={studentDialog.open}
         student={studentDialog.student}
+        others={students.filter((s) => s.id !== studentDialog.student?.id)}
         onClose={() => setStudentDialog({ open: false, student: null })}
         onSubmit={submitStudent}
       />

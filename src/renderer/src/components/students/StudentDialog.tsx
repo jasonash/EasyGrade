@@ -1,6 +1,6 @@
 import type { JSX } from 'react'
 import { useEffect } from 'react'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField } from '@mui/material'
@@ -17,11 +17,13 @@ export type StudentFormValues = z.infer<typeof FormSchema>
 interface Props {
   open: boolean
   student: Student | null
+  /** The rest of the roster, to warn about a reused student number before saving. */
+  others?: Student[]
   onClose: () => void
   onSubmit: (values: StudentFormValues) => Promise<void>
 }
 
-export function StudentDialog({ open, student, onClose, onSubmit }: Props): JSX.Element {
+export function StudentDialog({ open, student, others = [], onClose, onSubmit }: Props): JSX.Element {
   const {
     control,
     handleSubmit,
@@ -41,6 +43,9 @@ export function StudentDialog({ open, student, onClose, onSubmit }: Props): JSX.
       })
     }
   }, [open, student, reset])
+
+  const number = (useWatch({ control, name: 'studentNumber' }) ?? '').trim()
+  const duplicate = number === '' ? null : (others.find((o) => o.studentNumber === number) ?? null)
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
@@ -83,8 +88,11 @@ export function StudentDialog({ open, student, onClose, onSubmit }: Props): JSX.
                   {...field}
                   label="Student number"
                   fullWidth
-                  error={Boolean(errors.studentNumber)}
-                  helperText={errors.studentNumber?.message ?? 'Optional. District ID, shown on exports.'}
+                  error={Boolean(errors.studentNumber) || duplicate !== null}
+                  helperText={
+                    errors.studentNumber?.message ??
+                    (duplicate ? `${duplicate.lastName}, ${duplicate.firstName} already has this number` : 'Optional. District ID, shown on exports.')
+                  }
                 />
               )}
             />
@@ -94,7 +102,7 @@ export function StudentDialog({ open, student, onClose, onSubmit }: Props): JSX.
           <Button onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button type="submit" variant="contained" disabled={isSubmitting}>
+          <Button type="submit" variant="contained" disabled={isSubmitting || duplicate !== null}>
             {student ? 'Save' : 'Add'}
           </Button>
         </DialogActions>
