@@ -246,6 +246,10 @@ export function PrintDialog({ open, test, onClose, onPrinted, initialStudentIds 
             {studentCount} personalized + {blankValid ? blank : 0} blank = <strong>{total}</strong>{' '}
             {total === 1 ? 'sheet' : 'sheets'}
           </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Print... opens the sheets in your PDF viewer; use its Print command there to send them to the printer. Save PDF... keeps a
+            copy to print later.
+          </Typography>
 
           {error ? <Alert severity="error">{error}</Alert> : null}
           {busy !== null || loading ? <LinearProgress /> : null}

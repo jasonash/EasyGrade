@@ -6,6 +6,7 @@ import { api, unwrap } from '@/api'
 import { describeError } from '@/lib/errors'
 import { useUiStore, type SectionTab } from '@/stores/ui.store'
 import { useSectionsStore } from '@/stores/sections.store'
+import { useTestsStore } from '@/stores/tests.store'
 import { PageHeader } from '@/components/common/PageHeader'
 import { RosterTab } from '@/components/students/RosterTab'
 import { NewTestButton, TestsList } from '@/components/tests/TestsList'
@@ -15,9 +16,12 @@ export function SectionDetailPage(): JSX.Element {
   const tab = useUiStore((s) => s.sectionTab)
   const setTab = useUiStore((s) => s.setSectionTab)
   const navigate = useUiStore((s) => s.navigate)
+  const closeSection = useUiStore((s) => s.closeSection)
   const toast = useUiStore((s) => s.toast)
+  const openTest = useUiStore((s) => s.openTest)
+  const createTest = useTestsStore((s) => s.create)
   const [exporting, setExporting] = useState(false)
-  const [newTestOpen, setNewTestOpen] = useState(false)
+  const [creating, setCreating] = useState(false)
   const section = useSectionsStore((s) => s.sections.find((x) => x.id === sectionId) ?? null)
   const sectionsLoading = useSectionsStore((s) => s.loading)
 
@@ -27,6 +31,16 @@ export function SectionDetailPage(): JSX.Element {
   }, [sectionsLoading, sectionId, section, navigate])
 
   if (!section) return <Box />
+
+  // The section is known, so there is nothing to ask: make the draft and start typing the title.
+  const newTest = (): void => {
+    if (creating) return
+    setCreating(true)
+    void createTest({ sectionId: section.id, title: '' })
+      .then((test) => openTest(test.id))
+      .catch((err: unknown) => toast('error', describeError(err)))
+      .finally(() => setCreating(false))
+  }
 
   const exportCsv = (): void => {
     setExporting(true)
@@ -42,7 +56,7 @@ export function SectionDetailPage(): JSX.Element {
     <>
       <PageHeader
         title={section.name}
-        onBack={() => navigate('sections')}
+        onBack={closeSection}
         backLabel="Back to sections"
         chips={
           <>
@@ -59,7 +73,7 @@ export function SectionDetailPage(): JSX.Element {
                 </Button>
               </span>
             </Tooltip>
-            {tab === 'tests' ? <NewTestButton onClick={() => setNewTestOpen(true)} /> : null}
+            {tab === 'tests' ? <NewTestButton onClick={newTest} disabled={creating} /> : null}
           </>
         }
       />
@@ -71,7 +85,7 @@ export function SectionDetailPage(): JSX.Element {
 
       {tab === 'roster' ? <RosterTab section={section} /> : null}
       {tab === 'tests' ? (
-        <TestsList sectionId={section.id} newTest={{ open: newTestOpen, onOpen: () => setNewTestOpen(true), onClose: () => setNewTestOpen(false) }} />
+        <TestsList sectionId={section.id} newTest={{ open: false, onOpen: newTest, onClose: () => undefined }} />
       ) : null}
     </>
   )

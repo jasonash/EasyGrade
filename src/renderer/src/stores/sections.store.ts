@@ -6,6 +6,8 @@ interface SectionsState {
   sections: Section[]
   schoolYears: string[]
   loading: boolean
+  /** False until the first list has arrived, so pages can show a skeleton instead of "No sections yet". */
+  loaded: boolean
   includeArchived: boolean
   load: () => Promise<void>
   setIncludeArchived: (value: boolean) => Promise<void>
@@ -18,6 +20,7 @@ export const useSectionsStore = create<SectionsState>((set, get) => ({
   sections: [],
   schoolYears: [],
   loading: false,
+  loaded: false,
   includeArchived: false,
   load: async () => {
     set({ loading: true })
@@ -26,7 +29,7 @@ export const useSectionsStore = create<SectionsState>((set, get) => ({
         unwrap(api.sections.list(get().includeArchived)),
         unwrap(api.sections.schoolYears())
       ])
-      set({ sections, schoolYears })
+      set({ sections, schoolYears, loaded: true })
     } finally {
       set({ loading: false })
     }

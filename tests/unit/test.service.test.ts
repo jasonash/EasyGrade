@@ -79,7 +79,7 @@ describe('TestService', () => {
       expect((err as AppError).message).toBe('Question 1: Question text is required')
     }
     service.update({ id: test.id, title: 'Quiz', instructions: '', questions: [{ stem: 'ok', choices: ['a', ''], correctChoice: 0 }] })
-    expect(() => service.finalize(test.id)).toThrow('Question 1, choice 2: Choice text is required')
+    expect(() => service.finalize(test.id)).toThrow('Question 1, choice B: Choice text is required')
   })
 
   it('refuses to finalize a test that overflows its slots', () => {

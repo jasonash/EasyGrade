@@ -29,15 +29,18 @@ import EditIcon from '@mui/icons-material/Edit'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import PrintIcon from '@mui/icons-material/Print'
 import RefreshIcon from '@mui/icons-material/Refresh'
+import UploadFileIcon from '@mui/icons-material/UploadFile'
 import type { TestResults } from '@shared/types'
 import { useUiStore } from '@/stores/ui.store'
 import { useTestsStore } from '@/stores/tests.store'
 import { api, unwrap } from '@/api'
 import { gradingApi } from '@/lib/grading-api'
 import { describeError } from '@/lib/errors'
+import { useScanImport } from '@/lib/scan-import'
 import { choiceLetter, formatPercent, percentOf } from '@/lib/grading'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ClickableRow } from '@/components/common/ClickableRow'
+import { LinkButton } from '@/components/common/LinkButton'
 import { PageHeader } from '@/components/common/PageHeader'
 import { FlagChips } from '@/components/grading/FlagChips'
 import { PageReviewDrawer } from '@/components/grading/PageReviewDrawer'
@@ -50,8 +53,10 @@ export function TestResultsPage(): JSX.Element {
   const testId = useUiStore((s) => s.resultsTestId)
   const closeResults = useUiStore((s) => s.closeResults)
   const openTest = useUiStore((s) => s.openTest)
+  const openStudentResults = useUiStore((s) => s.openStudentResults)
   const toast = useUiStore((s) => s.toast)
   const reloadTests = useTestsStore((s) => s.load)
+  const { importing, importScans } = useScanImport()
 
   const [view, setView] = useState<TestResults | null>(null)
   const [loading, setLoading] = useState(true)
@@ -144,7 +149,11 @@ export function TestResultsPage(): JSX.Element {
             <Button variant="outlined" startIcon={<EditIcon />} onClick={() => openTest(test.id)}>
               Open test
             </Button>
-            {missing.length > 0 ? (
+            {rows.length === 0 ? (
+              <Button variant="contained" startIcon={<PrintIcon />} onClick={() => setPrintOpen(true)}>
+                Print sheets
+              </Button>
+            ) : missing.length > 0 ? (
               <Button variant="contained" startIcon={<PrintIcon />} onClick={() => setPrintOpen(true)}>
                 Make-up sheets ({missing.length})
               </Button>
@@ -195,7 +204,24 @@ export function TestResultsPage(): JSX.Element {
       </Stack>
 
       {rows.length === 0 ? (
-        <EmptyState title="No results yet" description="Import scanned answer sheets for this test on the Grading page. Graded pages show up here." />
+        <EmptyState
+          title="No results yet"
+          description="Print the sheets, scan them after the test, and import the scans. Graded pages show up here."
+          action={
+            <Button
+              variant="outlined"
+              startIcon={<UploadFileIcon />}
+              disabled={importing}
+              onClick={() => {
+                void importScans().then((batch) => {
+                  if (batch) refresh()
+                })
+              }}
+            >
+              Import scans...
+            </Button>
+          }
+        />
       ) : (
         <>
           <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
@@ -244,7 +270,9 @@ export function TestResultsPage(): JSX.Element {
                       label={`Review ${row.student.lastName}, ${row.student.firstName}`}
                     >
                       <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                        {row.student.lastName}, {row.student.firstName}
+                        <LinkButton onClick={() => openStudentResults(row.student.id)}>
+                          {row.student.lastName}, {row.student.firstName}
+                        </LinkButton>
                         {!row.student.active ? <Chip size="small" label="Inactive" sx={{ ml: 1 }} /> : null}
                       </TableCell>
                       <TableCell align="right">
@@ -314,7 +342,7 @@ export function TestResultsPage(): JSX.Element {
       <PrintDialog
         open={printOpen}
         test={test}
-        initialStudentIds={missing.map((s) => s.id)}
+        initialStudentIds={rows.length === 0 ? undefined : missing.map((s) => s.id)}
         onClose={() => setPrintOpen(false)}
         onPrinted={() => void reloadTests()}
       />

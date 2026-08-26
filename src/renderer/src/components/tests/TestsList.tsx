@@ -10,34 +10,37 @@ import { describeError } from '@/lib/errors'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { TestsTable } from './TestsTable'
-import { TestFormDialog } from './TestFormDialog'
+import { TestFormDialog, type TestFormValues } from './TestFormDialog'
 import { PrintDialog } from '@/components/print/PrintDialog'
 
 interface Props {
   /** Restrict to one section (section detail tab); otherwise show every visible test. */
   sectionId?: number
-  /** Extra filter for the global list (school year). */
+  /** Extra filter for the global list (school year, toolbar). */
   filter?: (test: TestSummary) => boolean
+  /** Present while the toolbar filters are narrowing the list; shown as a Clear filters action when nothing matches. */
+  onClearFilter?: () => void
   /**
    * The New Test dialog is opened from the page header, so the page owns its
    * open state and renders `NewTestButton` there; the list only asks to open
-   * it from its empty state.
+   * it from its empty state. A section page skips the dialog: it passes
+   * `open: false` and an `onOpen` that creates the test directly.
    */
   newTest: { open: boolean; onOpen: () => void; onClose: () => void }
 }
 
 /** The page-level "New Test" button; disabled until a section exists to put the test in. */
-export function NewTestButton({ onClick }: { onClick: () => void }): JSX.Element {
+export function NewTestButton({ onClick, disabled = false }: { onClick: () => void; disabled?: boolean }): JSX.Element {
   const hasSections = useSectionsStore((s) => s.sections.length > 0)
   return (
-    <Button variant="contained" startIcon={<AddIcon />} onClick={onClick} disabled={!hasSections}>
+    <Button variant="contained" startIcon={<AddIcon />} onClick={onClick} disabled={disabled || !hasSections}>
       New Test
     </Button>
   )
 }
 
-export function TestsList({ sectionId, filter, newTest }: Props): JSX.Element {
-  const { tests, loading, load, create, copy, remove } = useTestsStore()
+export function TestsList({ sectionId, filter, onClearFilter, newTest }: Props): JSX.Element {
+  const { tests, loading, load, create, copy, finalize, remove } = useTestsStore()
   const sections = useSectionsStore((s) => s.sections)
   const toast = useUiStore((s) => s.toast)
   const openTest = useUiStore((s) => s.openTest)
@@ -52,11 +55,14 @@ export function TestsList({ sectionId, filter, newTest }: Props): JSX.Element {
     void load().catch((err: unknown) => toast('error', describeError(err)))
   }, [load, toast])
 
-  const visible = tests.filter((t) => (sectionId === undefined || t.sectionId === sectionId) && (!filter || filter(t)))
+  const inScope = tests.filter((t) => sectionId === undefined || t.sectionId === sectionId)
+  const visible = inScope.filter((t) => !filter || filter(t))
 
-  const createTest = async (values: { sectionId: number; title: string }): Promise<void> => {
+  const createTest = async (values: TestFormValues): Promise<void> => {
+    const [targetId] = values.sectionIds
+    if (targetId === undefined) return
     try {
-      const test = await create(values)
+      const test = await create({ sectionId: targetId, title: values.title })
       newTest.onClose()
       openTest(test.id)
     } catch (err) {
@@ -64,17 +70,35 @@ export function TestsList({ sectionId, filter, newTest }: Props): JSX.Element {
     }
   }
 
-  const copyTest = async (values: { sectionId: number; title: string }): Promise<void> => {
+  /** Copy to every chosen section in turn; a single unfinalized copy opens in the editor, anything else stays on the list. */
+  const copyTest = async (values: TestFormValues): Promise<void> => {
     if (!copyTarget) return
-    try {
-      const test = await copy({ id: copyTarget.id, sectionId: values.sectionId, title: values.title })
-      const target = sections.find((s) => s.id === values.sectionId)
-      toast('success', `Copied to ${target?.name ?? 'section'} as a new draft`)
-      setCopyTarget(null)
-      openTest(test.id)
-    } catch (err) {
-      toast('error', describeError(err))
+    const made: number[] = []
+    let failure: string | null = null
+    for (const targetId of values.sectionIds) {
+      try {
+        const test = await copy({ id: copyTarget.id, sectionId: targetId, title: values.title })
+        made.push(test.id)
+        if (values.finalizeNow) await finalize(test.id)
+      } catch (err) {
+        const target = sections.find((s) => s.id === targetId)
+        failure = `${target?.name ?? 'Section'}: ${describeError(err)}`
+        break
+      }
     }
+    if (failure) {
+      toast('error', made.length > 0 ? `${failure} (${made.length} ${made.length === 1 ? 'copy' : 'copies'} made before that)` : failure)
+      if (made.length === 0) return
+    }
+    setCopyTarget(null)
+    const names = values.sectionIds.slice(0, made.length).map((id) => sections.find((s) => s.id === id)?.name ?? 'section')
+    const state = values.finalizeNow ? 'finalized and ready to print' : 'as a new draft'
+    if (made.length === 1 && !values.finalizeNow && made[0] !== undefined) {
+      toast('success', `Copied to ${names[0]} ${state}`)
+      openTest(made[0])
+      return
+    }
+    toast('success', made.length === 1 ? `Copied to ${names[0]}, ${state}` : `Copied to ${made.length} sections, ${state}: ${names.join(', ')}`)
   }
 
   const deleteTest = async (): Promise<void> => {
@@ -95,6 +119,22 @@ export function TestsList({ sectionId, filter, newTest }: Props): JSX.Element {
     <>
       {loading && tests.length === 0 ? (
         <Skeleton variant="rounded" height={160} />
+      ) : visible.length === 0 && inScope.length > 0 ? (
+        <EmptyState
+          title="No tests match"
+          description={
+            onClearFilter
+              ? 'Try another section, status, or search, or change the school year in the top bar.'
+              : 'Change the school year in the top bar to see tests from other years.'
+          }
+          action={
+            onClearFilter ? (
+              <Button variant="outlined" onClick={onClearFilter}>
+                Clear filters
+              </Button>
+            ) : undefined
+          }
+        />
       ) : visible.length === 0 ? (
         <EmptyState
           title="No tests yet"
@@ -133,7 +173,8 @@ export function TestsList({ sectionId, filter, newTest }: Props): JSX.Element {
         sections={sections}
         sectionId={copyTarget?.sectionId ?? null}
         initialTitle={copyTarget?.title ?? ''}
-        description="The copy becomes a new draft with its own code and answer key."
+        sourceFinalized={copyTarget?.status === 'finalized'}
+        description="Each copy is a separate test with its own code, so its sheets and results stay apart."
         onClose={() => setCopyTarget(null)}
         onSubmit={copyTest}
       />

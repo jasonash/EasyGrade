@@ -2,20 +2,34 @@ import type { JSX } from 'react'
 import { useEffect, useState } from 'react'
 import {
   Button,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
   FormControl,
+  FormControlLabel,
+  FormGroup,
+  FormHelperText,
+  FormLabel,
   InputLabel,
   MenuItem,
   Select,
   Stack,
+  Switch,
   TextField
 } from '@mui/material'
 import type { Section } from '@shared/types'
 import { MAX_TITLE_CHARS } from '@shared/layout'
+
+export interface TestFormValues {
+  /** One section for a new test; one or more targets for a copy. */
+  sectionIds: number[]
+  title: string
+  /** Copy only: finalize every copy right away so it can be printed. */
+  finalizeNow: boolean
+}
 
 interface Props {
   open: boolean
@@ -26,11 +40,13 @@ interface Props {
   lockSection?: boolean
   initialTitle?: string
   description?: string
+  /** Copy only: offer "Finalize copies now" (the source is finalized, so the copies will pass the same checks). */
+  sourceFinalized?: boolean
   onClose: () => void
-  onSubmit: (values: { sectionId: number; title: string }) => Promise<void>
+  onSubmit: (values: TestFormValues) => Promise<void>
 }
 
-/** Shared dialog for New Test (title + section) and Copy to section (section + title). */
+/** Shared dialog for New Test (title + section) and Copy to sections (title + section checklist). */
 export function TestFormDialog({
   open,
   mode,
@@ -39,12 +55,15 @@ export function TestFormDialog({
   lockSection = false,
   initialTitle = '',
   description,
+  sourceFinalized = false,
   onClose,
   onSubmit
 }: Props): JSX.Element {
   const targets = sections.filter((s) => !s.archived || s.id === sectionId)
   const [title, setTitle] = useState('')
   const [target, setTarget] = useState<number | ''>('')
+  const [chosen, setChosen] = useState<Set<number>>(new Set())
+  const [finalizeNow, setFinalizeNow] = useState(false)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -52,17 +71,31 @@ export function TestFormDialog({
     setTitle(initialTitle)
     const first = sections.find((s) => !s.archived)
     setTarget(sectionId ?? first?.id ?? '')
+    setChosen(new Set(sectionId !== null ? [sectionId] : []))
+    setFinalizeNow(false)
     setBusy(false)
   }, [open, initialTitle, sectionId, sections])
 
+  const sectionIds = mode === 'create' ? (target === '' ? [] : [target]) : [...chosen]
+  const canSubmit = !busy && sectionIds.length > 0 && title.trim() !== ''
+
   const submit = async (): Promise<void> => {
-    if (target === '') return
+    if (!canSubmit) return
     setBusy(true)
     try {
-      await onSubmit({ sectionId: target, title: title.trim() })
+      await onSubmit({ sectionIds, title: title.trim(), finalizeNow: mode === 'copy' && sourceFinalized && finalizeNow })
     } finally {
       setBusy(false)
     }
+  }
+
+  const toggle = (id: number): void => {
+    setChosen((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   }
 
   return (
@@ -83,10 +116,11 @@ export function TestFormDialog({
               onChange={(e) => setTitle(e.target.value.slice(0, MAX_TITLE_CHARS))}
               autoFocus
               fullWidth
+              required
               placeholder="Unit 3 Quiz"
               helperText={`${title.length}/${MAX_TITLE_CHARS}`}
             />
-            {lockSection ? null : (
+            {mode === 'create' && !lockSection ? (
               <FormControl fullWidth size="small">
                 <InputLabel id="test-section-label">Section</InputLabel>
                 <Select
@@ -103,15 +137,38 @@ export function TestFormDialog({
                   ))}
                 </Select>
               </FormControl>
-            )}
+            ) : null}
+            {mode === 'copy' ? (
+              <FormControl component="fieldset" variant="standard">
+                <FormLabel component="legend">Copy to</FormLabel>
+                <FormGroup sx={{ maxHeight: 240, overflowY: 'auto', flexWrap: 'nowrap' }}>
+                  {targets.map((s) => (
+                    <FormControlLabel
+                      key={s.id}
+                      control={<Checkbox size="small" checked={chosen.has(s.id)} onChange={() => toggle(s.id)} />}
+                      label={`${s.name}${s.schoolYear ? ` (${s.schoolYear})` : ''}`}
+                    />
+                  ))}
+                </FormGroup>
+                <FormHelperText>
+                  {chosen.size === 0 ? 'Pick at least one section.' : `${chosen.size} ${chosen.size === 1 ? 'copy' : 'copies'}, each with its own code and answer key.`}
+                </FormHelperText>
+              </FormControl>
+            ) : null}
+            {mode === 'copy' && sourceFinalized ? (
+              <FormControlLabel
+                control={<Switch size="small" checked={finalizeNow} onChange={(e) => setFinalizeNow(e.target.checked)} />}
+                label="Finalize copies now"
+              />
+            ) : null}
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose} disabled={busy}>
             Cancel
           </Button>
-          <Button type="submit" variant="contained" disabled={busy || target === '' || (mode === 'copy' && title === '')}>
-            {mode === 'create' ? 'Create' : 'Copy'}
+          <Button type="submit" variant="contained" disabled={!canSubmit}>
+            {mode === 'create' ? 'Create' : chosen.size > 1 ? `Copy to ${chosen.size} sections` : 'Copy'}
           </Button>
         </DialogActions>
       </form>

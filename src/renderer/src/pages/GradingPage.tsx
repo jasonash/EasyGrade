@@ -30,7 +30,8 @@ import { attentionCount, useScanStore } from '@/stores/scan.store'
 import { useUiStore } from '@/stores/ui.store'
 import { describeError } from '@/lib/errors'
 import { formatShortDate } from '@/lib/format'
-import { BucketChips, describeCounts } from '@/components/grading/BucketChips'
+import { BucketChips } from '@/components/grading/BucketChips'
+import { useScanImport } from '@/lib/scan-import'
 
 /**
  * Grading landing page: import scans, watch the batch process, and see how
@@ -39,10 +40,9 @@ import { BucketChips, describeCounts } from '@/components/grading/BucketChips'
 export function GradingPage(): JSX.Element {
   const batches = useScanStore((s) => s.batches)
   const loading = useScanStore((s) => s.loading)
-  const importing = useScanStore((s) => s.importing)
   const progress = useScanStore((s) => s.progress)
   const load = useScanStore((s) => s.load)
-  const pickAndImport = useScanStore((s) => s.pickAndImport)
+  const { importing, importScans } = useScanImport()
   const removeBatch = useScanStore((s) => s.removeBatch)
   const subscribe = useScanStore((s) => s.subscribe)
   const toast = useUiStore((s) => s.toast)
@@ -57,21 +57,7 @@ export function GradingPage(): JSX.Element {
   }, [load, subscribe, toast])
 
   const onImport = (): void => {
-    void pickAndImport()
-      .then((batch) => {
-        if (!batch) return
-        const summary = describeCounts(batch.counts)
-        const text = `Imported ${batch.pageCount} page${batch.pageCount === 1 ? '' : 's'}: ${summary}`
-        // The next step is always to look at the batch: go straight there when
-        // pages need a decision, otherwise offer it on the toast.
-        if (batch.counts.needs_assignment + batch.counts.unreadable > 0) {
-          toast(batch.errors.length > 0 ? 'warning' : 'success', text)
-          openBatch(batch.id)
-        } else {
-          toast(batch.errors.length > 0 ? 'warning' : 'success', text, { label: 'Open', onClick: () => openBatch(batch.id) })
-        }
-      })
-      .catch((err: unknown) => toast('error', describeError(err)))
+    void importScans()
   }
 
   const attention = attentionCount(batches)

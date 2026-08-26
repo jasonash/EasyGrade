@@ -10,6 +10,7 @@ import { formatShortDate } from '@/lib/format'
 import { formatPercent, percentOf } from '@/lib/grading'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ClickableRow } from '@/components/common/ClickableRow'
+import { LinkButton } from '@/components/common/LinkButton'
 import { PageHeader } from '@/components/common/PageHeader'
 import { FlagChips } from '@/components/grading/FlagChips'
 import { PageReviewDrawer } from '@/components/grading/PageReviewDrawer'
@@ -82,17 +83,7 @@ export function StudentResultsPage(): JSX.Element {
                   label={`Review ${row.test.title}`}
                 >
                   <TableCell>
-                    <Typography
-                      component="button"
-                      variant="body2"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        openTestResults(row.test.id)
-                      }}
-                      sx={{ background: 'none', border: 0, p: 0, color: 'primary.main', cursor: 'pointer', textAlign: 'left', font: 'inherit' }}
-                    >
-                      {row.test.title}
-                    </Typography>
+                    <LinkButton onClick={() => openTestResults(row.test.id)}>{row.test.title}</LinkButton>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                       {row.test.sectionName}
                     </Typography>

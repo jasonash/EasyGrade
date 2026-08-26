@@ -2,6 +2,7 @@ import type { JSX } from 'react'
 import { useCallback, useEffect, useState } from 'react'
 import {
   Alert,
+  Box,
   Button,
   Divider,
   FormControl,
@@ -51,22 +52,41 @@ export function SettingsPage(): JSX.Element {
   /** Notice shown while the page waits to reload after a restore or reset. */
   const [reloadNotice, setReloadNotice] = useState<string | null>(null)
 
+  /** Anything on this page that failed to load, named so the blank spot is explained. */
+  const [loadErrors, setLoadErrors] = useState<Record<string, string>>({})
+  const failed = useCallback((what: string) => (err: unknown) => setLoadErrors((prev) => ({ ...prev, [what]: describeError(err) })), [])
+
   const loadBackupStatus = useCallback((): void => {
     void unwrap(api.backup.status())
-      .then(setBackup)
-      .catch(() => setBackup(null))
-  }, [])
+      .then((status) => {
+        setBackup(status)
+        setLoadErrors((prev) => {
+          const { 'Backup status': _dropped, ...rest } = prev
+          return rest
+        })
+      })
+      .catch((err: unknown) => {
+        setBackup(null)
+        failed('Backup status')(err)
+      })
+  }, [failed])
 
   useEffect(() => {
     void unwrap(api.app.info())
       .then(setInfo)
-      .catch(() => setInfo(null))
+      .catch((err: unknown) => {
+        setInfo(null)
+        failed('App info')(err)
+      })
     void unwrap(api.update.getState())
       .then(setUpdateState)
-      .catch(() => setUpdateState(null))
+      .catch((err: unknown) => {
+        setUpdateState(null)
+        failed('Update status')(err)
+      })
     loadBackupStatus()
     return api.update.onStatus(setUpdateState)
-  }, [loadBackupStatus])
+  }, [loadBackupStatus, failed])
 
   const checkForUpdates = (): void => {
     setBusy('update')
@@ -185,6 +205,15 @@ export function SettingsPage(): JSX.Element {
       <PageHeader title="Settings" />
       <Stack spacing={2} sx={{ maxWidth: 720 }}>
         {reloadNotice ? <Alert severity="info">{reloadNotice}</Alert> : null}
+        {Object.keys(loadErrors).length > 0 ? (
+          <Alert severity="error">
+            {Object.entries(loadErrors).map(([what, message]) => (
+              <Box key={what}>
+                {what} could not be loaded: {message}
+              </Box>
+            ))}
+          </Alert>
+        ) : null}
 
         <Paper variant="outlined" sx={{ p: 3 }}>
           <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5 }}>

@@ -1,5 +1,5 @@
 import type { JSX } from 'react'
-import { Box, Button, Card, CardContent, Chip, IconButton, Radio, Stack, TextField, Tooltip, Typography } from '@mui/material'
+import { Box, Button, Card, CardContent, Chip, IconButton, Radio, RadioGroup, Stack, TextField, Tooltip, Typography } from '@mui/material'
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
@@ -94,18 +94,20 @@ export function QuestionCard({ index, count, question, measure, readOnly, onChan
           sx={{ mb: 1 }}
         />
 
-        <Stack spacing={0.5}>
+        {/* One radio group per question: the arrow keys move the key between choices and screen readers announce the set. */}
+        <RadioGroup
+          name={`question-${index + 1}-key`}
+          aria-label={`Correct answer for question ${index + 1}`}
+          value={question.correctChoice}
+          onChange={(e) => onChange({ ...question, correctChoice: Number(e.target.value) })}
+          sx={{ gap: 0.5 }}
+        >
           {question.choices.map((choice, i) => {
             const bad = unsupportedChars(choice)
             return (
               <Stack key={i} direction="row" alignItems="center" spacing={0.5}>
                 <Tooltip title={question.correctChoice === i ? 'Correct answer' : 'Mark as correct'}>
-                  <Radio
-                    size="small"
-                    checked={question.correctChoice === i}
-                    onChange={() => onChange({ ...question, correctChoice: i })}
-                    inputProps={{ 'aria-label': `Choice ${CHOICE_LETTERS[i] ?? ''} is correct` }}
-                  />
+                  <Radio size="small" value={i} inputProps={{ 'aria-label': `Choice ${CHOICE_LETTERS[i] ?? ''} is correct` }} />
                 </Tooltip>
                 <TextField
                   value={choice}
@@ -148,7 +150,7 @@ export function QuestionCard({ index, count, question, measure, readOnly, onChan
               </Stack>
             )
           })}
-        </Stack>
+        </RadioGroup>
 
         {readOnly ? null : (
           <Button

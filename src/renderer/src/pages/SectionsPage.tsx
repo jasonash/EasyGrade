@@ -8,8 +8,10 @@ import {
   Menu,
   MenuItem,
   Paper,
+  Skeleton,
   Stack,
   Switch,
+  Tooltip,
   Table,
   TableBody,
   TableCell,
@@ -30,8 +32,20 @@ import { SectionDialog } from '@/components/sections/SectionDialog'
 import { useSchoolYearFilter } from '@/lib/schoolYear'
 import { describeError as describe } from '@/lib/errors'
 
+/** Only an empty section can be deleted; the service refuses otherwise. */
+function canDelete(section: Section): boolean {
+  return section.studentCount === 0 && section.testCount === 0
+}
+
+function deleteHint(section: Section): string {
+  const parts: string[] = []
+  if (section.studentCount > 0) parts.push(`${section.studentCount} ${section.studentCount === 1 ? 'student' : 'students'}`)
+  if (section.testCount > 0) parts.push(`${section.testCount} ${section.testCount === 1 ? 'test' : 'tests'}`)
+  return `Still has ${parts.join(' and ')}. Archive it instead, or remove them first.`
+}
+
 export function SectionsPage(): JSX.Element {
-  const { sections, schoolYears, includeArchived, load, setIncludeArchived, create, update, remove } =
+  const { sections, schoolYears, loaded, includeArchived, load, setIncludeArchived, create, update, remove } =
     useSectionsStore()
   const toast = useUiStore((s) => s.toast)
   const openSection = useUiStore((s) => s.openSection)
@@ -61,8 +75,12 @@ export function SectionsPage(): JSX.Element {
         await update({ id: editing.id, name: input.name, schoolYear: input.schoolYear })
         toast('success', 'Section updated')
       } else {
-        await create(input)
-        toast('success', 'Section created')
+        // The roster is the next thing to fill in, so land there.
+        const section = await create(input)
+        toast('success', 'Section created. Add students to its roster.')
+        setDialogOpen(false)
+        openSection(section.id, 'roster')
+        return
       }
       setDialogOpen(false)
     } catch (err) {
@@ -105,7 +123,9 @@ export function SectionsPage(): JSX.Element {
         }
       />
 
-      {sections.length === 0 ? (
+      {!loaded ? (
+        <Skeleton variant="rounded" height={160} />
+      ) : sections.length === 0 ? (
         <EmptyState
           title="No sections yet"
           description="Create a section for each class period, then add students to its roster."
@@ -208,12 +228,20 @@ export function SectionsPage(): JSX.Element {
         <MenuItem onClick={() => menuAnchor && void toggleArchived(menuAnchor.section)}>
           {menuAnchor?.section.archived ? 'Restore' : 'Archive'}
         </MenuItem>
-        <MenuItem
-          onClick={() => menuAnchor && void deleteSection(menuAnchor.section)}
-          sx={{ color: 'error.main' }}
+        <Tooltip
+          title={menuAnchor && !canDelete(menuAnchor.section) ? deleteHint(menuAnchor.section) : ''}
+          placement="left"
         >
-          Delete
-        </MenuItem>
+          <span>
+            <MenuItem
+              onClick={() => menuAnchor && void deleteSection(menuAnchor.section)}
+              disabled={menuAnchor !== null && !canDelete(menuAnchor.section)}
+              sx={{ color: 'error.main' }}
+            >
+              Delete
+            </MenuItem>
+          </span>
+        </Tooltip>
       </Menu>
 
       <SectionDialog

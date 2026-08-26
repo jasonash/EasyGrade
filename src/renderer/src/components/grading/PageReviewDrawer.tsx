@@ -18,6 +18,7 @@ import { describeError } from '@/lib/errors'
 import { BUCKETS, formatPercent, percentOf } from '@/lib/grading'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Code } from '@/components/common/Code'
+import { LinkButton } from '@/components/common/LinkButton'
 import { AnswerRows } from './AnswerRows'
 import { AssignPanel } from './AssignPanel'
 import { PageImage } from './PageImage'
@@ -51,6 +52,7 @@ export function PageReviewDrawer({ pageId, pageIds, onNavigate, onClose, onChang
   const toast = useUiStore((s) => s.toast)
   const uiPage = useUiStore((s) => s.page)
   const openTestResults = useUiStore((s) => s.openTestResults)
+  const openStudentResults = useUiStore((s) => s.openStudentResults)
 
   const [page, setPage] = useState<ScanPageDetail | null>(null)
   const [test, setTest] = useState<Test | null>(null)
@@ -65,12 +67,18 @@ export function PageReviewDrawer({ pageId, pageIds, onNavigate, onClose, onChang
       const loaded = await getPage(id)
       setPage(loaded)
       if (loaded.testId !== null) {
-        setTest(await unwrap(api.tests.get(loaded.testId)).catch(() => null))
+        // Without the test there is no answer key to show, but the page itself can still be assigned or discarded.
+        setTest(
+          await unwrap(api.tests.get(loaded.testId)).catch((err: unknown) => {
+            toast('error', `Could not load the test for this page: ${describeError(err)}`)
+            return null
+          })
+        )
       } else {
         setTest(null)
       }
     },
-    [getPage]
+    [getPage, toast]
   )
 
   useEffect(() => {
@@ -228,7 +236,18 @@ export function PageReviewDrawer({ pageId, pageIds, onNavigate, onClose, onChang
           <Box sx={{ flexGrow: 1, minWidth: 0 }}>
             <Typography variant="h6" noWrap role="status" aria-live="polite">
               {page ? `Page ${page.pageIndex + 1}` : 'Page'}
-              {page?.studentName ? ` · ${page.studentName}` : ''}
+              {page?.studentName ? (
+                <>
+                  {' · '}
+                  {page.studentId !== null && uiPage !== 'student-results' ? (
+                    <LinkButton variant="inherit" onClick={() => page.studentId !== null && openStudentResults(page.studentId)}>
+                      {page.studentName}
+                    </LinkButton>
+                  ) : (
+                    page.studentName
+                  )}
+                </>
+              ) : null}
               {score ? ` · ${score} (${percent})` : ''}
             </Typography>
             <Typography variant="body2" color="text.secondary" noWrap>

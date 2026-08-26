@@ -35,7 +35,7 @@ export function TestsTable({ tests, showSection = false, onOpen, onResults, onCo
               {showSection ? <TableCell>Section</TableCell> : null}
               <TableCell align="right">Questions</TableCell>
               <TableCell>Status</TableCell>
-              <TableCell>Printed</TableCell>
+              <TableCell>Sheets made</TableCell>
               <TableCell>Graded</TableCell>
               <TableCell width={56} />
             </TableRow>

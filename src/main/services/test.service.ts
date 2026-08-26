@@ -10,8 +10,11 @@ import { buildSheetLayout, measureTest } from '@shared/layout'
 import type { TestRepository } from '../db/repositories/test.repo'
 import type { SectionRepository } from '../db/repositories/section.repo'
 import { AppError } from './errors'
+import { describeFinalizeIssue } from '@shared/test-validation'
+import { DEFAULT_TEST_TITLE } from '@shared/schemas'
 
-export const DEFAULT_TITLE = 'Untitled test'
+/** Kept for callers that import it from here; the value lives in the shared schema. */
+export const DEFAULT_TITLE = DEFAULT_TEST_TITLE
 
 function blankQuestion(): { stem: string; choices: string[]; correctChoice: number } {
   return { stem: '', choices: ['', '', '', ''], correctChoice: 0 }
@@ -107,8 +110,7 @@ export class TestService {
     })
     if (!strict.success) {
       const issue = strict.error.issues[0]
-      const where = describePath(issue?.path ?? [])
-      throw new AppError('VALIDATION', `${where}${issue?.message ?? 'Invalid test'}`)
+      throw new AppError('VALIDATION', issue ? describeFinalizeIssue(issue) : 'Invalid test')
     }
 
     const measure = measureTest(strict.data)
@@ -165,17 +167,3 @@ export class TestService {
   }
 }
 
-function describePath(path: PropertyKey[]): string {
-  const [head, index, field] = path
-  if (head === 'questions' && typeof index === 'number') {
-    const n = index + 1
-    if (field === 'choices') {
-      const choiceIndex = path[3]
-      return typeof choiceIndex === 'number' ? `Question ${n}, choice ${choiceIndex + 1}: ` : `Question ${n}: `
-    }
-    return `Question ${n}: `
-  }
-  if (head === 'title') return 'Title: '
-  if (head === 'instructions') return 'Instructions: '
-  return ''
-}

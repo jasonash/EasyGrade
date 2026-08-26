@@ -46,21 +46,25 @@ export class StudentService {
   create(input: StudentInput): Student {
     const parsed = StudentInputSchema.parse(input)
     this.requireSection(parsed.sectionId)
+    const studentNumber = normalizeNumber(parsed.studentNumber)
+    this.rejectReusedNumber(parsed.sectionId, studentNumber, null)
     return this.repo.insert({
       sectionId: parsed.sectionId,
       lastName: parsed.lastName,
       firstName: parsed.firstName,
-      studentNumber: normalizeNumber(parsed.studentNumber)
+      studentNumber
     })
   }
 
   update(input: StudentUpdate): Student {
     const parsed = StudentUpdateSchema.parse(input)
-    this.get(parsed.id)
+    const current = this.get(parsed.id)
+    const studentNumber = parsed.studentNumber === undefined ? undefined : normalizeNumber(parsed.studentNumber)
+    if (studentNumber !== undefined) this.rejectReusedNumber(current.sectionId, studentNumber, current.id)
     const updated = this.repo.update(parsed.id, {
       lastName: parsed.lastName,
       firstName: parsed.firstName,
-      studentNumber: parsed.studentNumber === undefined ? undefined : normalizeNumber(parsed.studentNumber),
+      studentNumber,
       active: parsed.active
     })
     if (!updated) throw new AppError('NOT_FOUND', `Student ${parsed.id} not found`)
@@ -123,6 +127,15 @@ export class StudentService {
 
   template(): string {
     return ROSTER_TEMPLATE_CSV
+  }
+
+  /** A district number identifies one person; two roster rows sharing it is a typo or a duplicate row. */
+  private rejectReusedNumber(sectionId: number, studentNumber: string | null, exceptId: number | null): void {
+    if (studentNumber === null) return
+    const clash = this.repo.listBySection(sectionId, true).find((s) => s.studentNumber === studentNumber && s.id !== exceptId)
+    if (clash) {
+      throw new AppError('CONFLICT', `${clash.lastName}, ${clash.firstName} already has student number ${studentNumber} in this section`)
+    }
   }
 
   private requireSection(sectionId: number): void {

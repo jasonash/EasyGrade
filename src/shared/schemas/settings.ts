@@ -6,6 +6,10 @@ export type ThemeMode = z.infer<typeof ThemeModeSchema>
 export const TextSizeSchema = z.enum(['normal', 'large', 'larger'])
 export type TextSize = z.infer<typeof TextSizeSchema>
 
+/** Top-level pages the app reopens on launch. Settings is deliberately not one of them. */
+export const LastPageSchema = z.enum(['sections', 'tests', 'grading'])
+export type LastPage = z.infer<typeof LastPageSchema>
+
 /** Window zoom factor for each text size; applied through the preload. */
 export const TEXT_SIZE_ZOOM: Record<TextSize, number> = { normal: 1, large: 1.15, larger: 1.3 }
 
@@ -27,7 +31,9 @@ const fields = {
   backupOnQuit: z.boolean(),
   /** Database snapshots to keep in the backup folder. */
   backupKeep: z.number().int().min(1).max(50),
-  lastBackupAt: z.string().nullable()
+  lastBackupAt: z.string().nullable(),
+  /** The rail page that was open when the app last closed. Null = Sections. */
+  lastPage: LastPageSchema.nullable()
 }
 
 const FullSettingsSchema = z.object(fields)
@@ -44,7 +50,8 @@ export const DEFAULT_SETTINGS: Settings = {
   backupDir: null,
   backupOnQuit: true,
   backupKeep: 10,
-  lastBackupAt: null
+  lastBackupAt: null,
+  lastPage: null
 }
 
 /** Only the keys given; undefined keys are absent, not defaulted. */

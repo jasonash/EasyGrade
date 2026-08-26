@@ -13,6 +13,9 @@ import {
 
 export const TestStatusSchema = z.enum(['draft', 'finalized'])
 
+/** Title given to a test created without one; the editor selects it so typing replaces it. */
+export const DEFAULT_TEST_TITLE = 'Untitled test'
+
 export const TitleSchema = z.string().trim().min(1, 'Title is required').max(MAX_TITLE_CHARS)
 export const InstructionsSchema = z.string().trim().max(MAX_INSTRUCTIONS_CHARS)
 export const StemSchema = z.string().trim().min(1, 'Question text is required').max(MAX_STEM_CHARS)

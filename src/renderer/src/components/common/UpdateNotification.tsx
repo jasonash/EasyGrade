@@ -37,12 +37,12 @@ export function UpdateNotification(): JSX.Element {
   useEffect(() => {
     void unwrap(api.update.getState())
       .then(setState)
-      .catch(() => undefined)
+      .catch((err: unknown) => toast('warning', `Update status unavailable: ${describeError(err)}`))
     return api.update.onStatus((next) => {
       setState(next)
       if (next.status.status === 'downloaded' && !restartDismissed) setRestartOpen(true)
     })
-  }, [restartDismissed])
+  }, [restartDismissed, toast])
 
   const download = (): void => {
     void unwrap(api.update.download()).catch((err: unknown) => toast('error', describeError(err)))
