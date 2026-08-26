@@ -11,6 +11,7 @@ import type { Test } from '@shared/types'
 import { MAX_INSTRUCTIONS_CHARS, MAX_QUESTIONS, MAX_TITLE_CHARS, measureTest } from '@shared/layout'
 import { formatQrPayload } from '@shared/codes'
 import { firstFinalizeProblem } from '@shared/test-validation'
+import { DEFAULT_TEST_TITLE } from '@shared/schemas'
 import { CHOICE_LETTERS } from '@shared/layout'
 import { useUiStore } from '@/stores/ui.store'
 import { useTestsStore } from '@/stores/tests.store'
@@ -71,6 +72,7 @@ export function TestEditorPage(): JSX.Element {
   const stateRef = useRef<EditorState | null>(null)
   const dirtyRef = useRef(false)
   const timerRef = useRef<number | null>(null)
+  const titleRef = useRef<HTMLInputElement | null>(null)
   stateRef.current = state
 
   const readOnly = test?.status === 'finalized'
@@ -85,6 +87,14 @@ export function TestEditorPage(): JSX.Element {
         setState(fromTest(loaded))
         dirtyRef.current = false
         setSaveState('saved')
+        // A test made without a title (New Test from a section) starts with the
+        // placeholder selected, so the first keystroke replaces it.
+        if (loaded.status === 'draft' && loaded.title === DEFAULT_TEST_TITLE && loaded.questions.every((q) => q.stem === '')) {
+          window.setTimeout(() => {
+            titleRef.current?.focus()
+            titleRef.current?.select()
+          }, 0)
+        }
       })
       .catch((err: unknown) => {
         toast('error', describeError(err))
@@ -235,6 +245,7 @@ export function TestEditorPage(): JSX.Element {
             value={state.title}
             onChange={(e) => edit({ ...state, title: e.target.value.replace(/[\r\n]+/g, ' ').slice(0, MAX_TITLE_CHARS) })}
             placeholder="Test title"
+            inputRef={titleRef}
             sx={{ flexGrow: 1, minWidth: 240 }}
             slotProps={{ input: { readOnly, sx: { fontSize: 22, fontWeight: 600 } } }}
             inputProps={{ 'aria-label': 'Test title' }}
