@@ -11,7 +11,7 @@ import type { TestRepository } from '../db/repositories/test.repo'
 import type { SectionRepository } from '../db/repositories/section.repo'
 import { AppError } from './errors'
 import { describeFinalizeIssue } from '@shared/test-validation'
-import { DEFAULT_TEST_TITLE } from '@shared/schemas'
+import { DEFAULT_INSTRUCTIONS, DEFAULT_TEST_TITLE } from '@shared/schemas'
 
 /** Kept for callers that import it from here; the value lives in the shared schema. */
 export const DEFAULT_TITLE = DEFAULT_TEST_TITLE
@@ -50,14 +50,14 @@ export class TestService {
     return test
   }
 
-  /** New draft with one blank question so the editor has something to show. */
+  /** New draft with the default instructions and one blank question so the editor has something to show. */
   create(input: TestCreateInput): Test {
     const parsed = TestCreateInputSchema.parse(input)
     this.requireSection(parsed.sectionId)
     return this.repo.insert({
       sectionId: parsed.sectionId,
       title: parsed.title === '' ? DEFAULT_TITLE : parsed.title,
-      instructions: '',
+      instructions: DEFAULT_INSTRUCTIONS,
       questions: [blankQuestion()]
     })
   }

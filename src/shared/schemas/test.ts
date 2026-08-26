@@ -15,6 +15,8 @@ export const TestStatusSchema = z.enum(['draft', 'finalized'])
 
 /** Title given to a test created without one; the editor selects it so typing replaces it. */
 export const DEFAULT_TEST_TITLE = 'Untitled test'
+/** Instructions a new test starts with; the editor selects them on focus so typing replaces them. */
+export const DEFAULT_INSTRUCTIONS = 'Fill in one bubble completely for each question.'
 
 export const TitleSchema = z.string().trim().min(1, 'Title is required').max(MAX_TITLE_CHARS)
 export const InstructionsSchema = z.string().trim().max(MAX_INSTRUCTIONS_CHARS)

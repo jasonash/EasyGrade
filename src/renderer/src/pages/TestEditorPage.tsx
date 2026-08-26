@@ -11,7 +11,7 @@ import type { Test } from '@shared/types'
 import { MAX_INSTRUCTIONS_CHARS, MAX_QUESTIONS, MAX_TITLE_CHARS, measureTest } from '@shared/layout'
 import { formatQrPayload } from '@shared/codes'
 import { firstFinalizeProblem } from '@shared/test-validation'
-import { DEFAULT_TEST_TITLE } from '@shared/schemas'
+import { DEFAULT_INSTRUCTIONS, DEFAULT_TEST_TITLE } from '@shared/schemas'
 import { CHOICE_LETTERS } from '@shared/layout'
 import { useUiStore } from '@/stores/ui.store'
 import { useTestsStore } from '@/stores/tests.store'
@@ -328,9 +328,13 @@ export function TestEditorPage(): JSX.Element {
             label="Instructions"
             value={state.instructions}
             onChange={(e) => edit({ ...state, instructions: e.target.value.replace(/[\r\n]+/g, ' ').slice(0, MAX_INSTRUCTIONS_CHARS) })}
+            // The stock text is selected on focus so typing replaces it; custom text keeps normal click-to-place-cursor editing.
+            onFocus={(e) => {
+              if (!readOnly && state.instructions === DEFAULT_INSTRUCTIONS) e.target.select()
+            }}
             size="small"
             fullWidth
-            placeholder="Fill in one bubble completely for each question."
+            placeholder={DEFAULT_INSTRUCTIONS}
             helperText={`${state.instructions.length}/${MAX_INSTRUCTIONS_CHARS}. Optional, printed above the questions.`}
             slotProps={{ input: { readOnly } }}
           />
