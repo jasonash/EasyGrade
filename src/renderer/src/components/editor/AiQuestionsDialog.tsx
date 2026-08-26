@@ -78,7 +78,16 @@ export function AiQuestionsDialog({ open, existingCount, topic, onClose, onImpor
   }
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog
+      open={open}
+      // A stray click outside must not throw away a pasted reply; Cancel still closes.
+      onClose={(_, reason) => {
+        if (reason === 'backdropClick' && reply.trim() !== '') return
+        onClose()
+      }}
+      maxWidth="md"
+      fullWidth
+    >
       <DialogTitle>Write questions with AI</DialogTitle>
       <DialogContent>
         <Stack spacing={3} sx={{ pt: 1 }}>

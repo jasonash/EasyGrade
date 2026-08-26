@@ -10,6 +10,8 @@ import AssessmentIcon from '@mui/icons-material/Assessment'
 import type { Test } from '@shared/types'
 import { MAX_INSTRUCTIONS_CHARS, MAX_QUESTIONS, MAX_TITLE_CHARS, measureTest } from '@shared/layout'
 import { formatQrPayload } from '@shared/codes'
+import { firstFinalizeProblem } from '@shared/test-validation'
+import { CHOICE_LETTERS } from '@shared/layout'
 import { useUiStore } from '@/stores/ui.store'
 import { useTestsStore } from '@/stores/tests.store'
 import { describeError } from '@/lib/errors'
@@ -63,6 +65,8 @@ export function TestEditorPage(): JSX.Element {
   const [unlockOpen, setUnlockOpen] = useState(false)
   const [printOpen, setPrintOpen] = useState(false)
   const [aiOpen, setAiOpen] = useState(false)
+  /** A key change on a finalized test with results waits for confirmation here. */
+  const [pendingKey, setPendingKey] = useState<{ index: number; correctChoice: number } | null>(null)
 
   const stateRef = useRef<EditorState | null>(null)
   const dirtyRef = useRef(false)
@@ -112,13 +116,25 @@ export function TestEditorPage(): JSX.Element {
     }
   }, [testId, update, toast])
 
-  // Flush a pending save when leaving the editor.
+  // Flush a pending save when leaving the editor or when the window goes away
+  // (quit, reload) before the autosave timer fires.
   useEffect(() => {
-    return () => {
+    const flush = (): void => {
       if (timerRef.current !== null) window.clearTimeout(timerRef.current)
+      timerRef.current = null
       void save()
     }
+    window.addEventListener('pagehide', flush)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      flush()
+    }
   }, [save])
+
+  const retrySave = (): void => {
+    dirtyRef.current = true
+    void save()
+  }
 
   const edit = (next: EditorState): void => {
     setState(next)
@@ -144,6 +160,8 @@ export function TestEditorPage(): JSX.Element {
     [state]
   )
 
+  const validationProblem = useMemo(() => (state ? firstFinalizeProblem(state) : null), [state])
+
   const changeKey = async (index: number, correctChoice: number): Promise<void> => {
     if (!state || !test) return
     const questions = state.questions.map((q, i) => (i === index ? { ...q, correctChoice } : q))
@@ -151,6 +169,7 @@ export function TestEditorPage(): JSX.Element {
       edit({ ...state, questions })
       return
     }
+    setPendingKey(null)
     setState({ ...state, questions })
     try {
       const updated = await updateKey({ id: test.id, correctChoices: questions.map((q) => q.correctChoice) })
@@ -199,8 +218,11 @@ export function TestEditorPage(): JSX.Element {
     return <Skeleton variant="rounded" height={400} />
   }
 
-  const canFinalize = measure.fits && !busy && saveState !== 'error'
+  const canFinalize = measure.fits && validationProblem === null && !busy && saveState !== 'error'
   const saveLabel = { saved: 'Saved', dirty: 'Unsaved changes', saving: 'Saving...', error: 'Save failed' }[saveState]
+  const finalizeHint = !measure.fits ? 'Fix the fit problems first' : (validationProblem ?? 'Lock the layout so sheets can be printed')
+  // A brand-new test is one blank card; nagging about it before anything is typed helps nobody.
+  const started = state.questions.some((q) => !isBlankQuestion(q))
 
   return (
     <>
@@ -222,6 +244,9 @@ export function TestEditorPage(): JSX.Element {
         subtitle={
           <span aria-live="polite">
             {test.sectionName} · Code {test.code} · {readOnly ? `Finalized, layout v${test.layoutVersion}` : saveLabel}
+            {!readOnly && saveState === 'error' ? (
+              <Chip size="small" color="error" variant="outlined" label="Retry" onClick={retrySave} sx={{ ml: 1 }} />
+            ) : null}
           </span>
         }
         actions={
@@ -241,7 +266,7 @@ export function TestEditorPage(): JSX.Element {
           ) : (
             <>
               <FitMeter measure={measure} />
-              <Tooltip title={measure.fits ? 'Lock the layout so sheets can be printed' : 'Fix the fit problems first'}>
+              <Tooltip title={finalizeHint}>
                 <span>
                   <Button variant="contained" startIcon={<LockIcon />} onClick={() => void doFinalize()} disabled={!canFinalize}>
                     Finalize
@@ -272,6 +297,11 @@ export function TestEditorPage(): JSX.Element {
           {measure.problems.join('. ')}
         </Alert>
       ) : null}
+      {!readOnly && measure.fits && validationProblem !== null && started ? (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Before finalizing: {validationProblem}
+        </Alert>
+      ) : null}
 
       {/* The preview is live feedback while typing, so it stays beside the questions from the md breakpoint (the app's 1024 minimum) up. */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 340px', lg: 'minmax(0, 7fr) minmax(0, 5fr)' }, gap: 3, alignItems: 'start' }}>
@@ -297,7 +327,10 @@ export function TestEditorPage(): JSX.Element {
               readOnly={readOnly}
               onChange={(next) => {
                 if (readOnly) {
-                  if (next.correctChoice !== question.correctChoice) void changeKey(index, next.correctChoice)
+                  if (next.correctChoice === question.correctChoice) return
+                  // Results already graded against the old key: confirm before regrading them.
+                  if (test.resultCount > 0) setPendingKey({ index, correctChoice: next.correctChoice })
+                  else void changeKey(index, next.correctChoice)
                   return
                 }
                 edit({ ...state, questions: state.questions.map((q, i) => (i === index ? next : q)) })
@@ -367,6 +400,22 @@ export function TestEditorPage(): JSX.Element {
         onPrinted={(outcome) => {
           if (outcome.printRun) setTest((prev) => (prev ? { ...prev, lastPrintedAt: outcome.printRun?.printedAt ?? prev.lastPrintedAt } : prev))
           void reloadTests()
+        }}
+      />
+
+      <ConfirmDialog
+        open={pendingKey !== null}
+        title="Change the answer key?"
+        message={
+          pendingKey
+            ? `Question ${pendingKey.index + 1}'s answer becomes ${CHOICE_LETTERS[pendingKey.correctChoice] ?? pendingKey.correctChoice + 1}. ` +
+              `${test.resultCount} graded result${test.resultCount === 1 ? '' : 's'} will be rescored against the new key.`
+            : ''
+        }
+        confirmLabel="Change key"
+        onClose={() => setPendingKey(null)}
+        onConfirm={() => {
+          if (pendingKey) void changeKey(pendingKey.index, pendingKey.correctChoice)
         }}
       />
 

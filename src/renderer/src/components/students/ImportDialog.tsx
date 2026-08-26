@@ -103,7 +103,17 @@ export function ImportDialog({ open, source, onClose, onPreview, onCommit }: Pro
   const title = source.kind === 'file' ? `Import ${source.name}` : 'Paste from Spreadsheet'
 
   return (
-    <Dialog open={open} onClose={busy ? undefined : onClose} fullWidth maxWidth="md">
+    <Dialog
+      open={open}
+      // A stray click outside must not throw away a pasted roster; Cancel still closes.
+      onClose={(_, reason) => {
+        if (busy) return
+        if (reason === 'backdropClick' && text.trim() !== '') return
+        onClose()
+      }}
+      fullWidth
+      maxWidth="md"
+    >
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
         {busy ? <LinearProgress sx={{ mb: 2 }} /> : null}

@@ -56,7 +56,7 @@ export function TestFormDialog({
   }, [open, initialTitle, sectionId, sections])
 
   const submit = async (): Promise<void> => {
-    if (target === '') return
+    if (target === '' || title.trim() === '') return
     setBusy(true)
     try {
       await onSubmit({ sectionId: target, title: title.trim() })
@@ -110,7 +110,7 @@ export function TestFormDialog({
           <Button onClick={onClose} disabled={busy}>
             Cancel
           </Button>
-          <Button type="submit" variant="contained" disabled={busy || target === '' || (mode === 'copy' && title === '')}>
+          <Button type="submit" variant="contained" disabled={busy || target === '' || title.trim() === ''}>
             {mode === 'create' ? 'Create' : 'Copy'}
           </Button>
         </DialogActions>
