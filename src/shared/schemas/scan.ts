@@ -125,9 +125,20 @@ export type BatchStatus = z.infer<typeof BatchStatusSchema>
 
 export type BucketCounts = Record<PageBucket, number>
 
+/** A test that pages in a batch were matched to, so the batch list can say what was scanned. */
+export interface BatchTest {
+  id: number
+  title: string
+  sectionName: string
+  /** Pages in the batch attached to this test (any bucket except discarded). */
+  pages: number
+}
+
 export interface ScanBatch {
   id: number
   sourceDescription: string
+  /** Distinct tests among the batch's pages, most pages first. Empty when nothing was recognized. */
+  tests: BatchTest[]
   pageCount: number
   status: BatchStatus
   importedAt: string

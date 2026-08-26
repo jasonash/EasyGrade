@@ -22,7 +22,8 @@ import type { ScanBatch } from '@shared/types'
 import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
-import { useScanStore } from '@/stores/scan.store'
+import { ClickableRow } from '@/components/common/ClickableRow'
+import { attentionCount, useScanStore } from '@/stores/scan.store'
 import { useUiStore } from '@/stores/ui.store'
 import { describeError } from '@/lib/errors'
 import { formatShortDate } from '@/lib/format'
@@ -56,10 +57,21 @@ export function GradingPage(): JSX.Element {
       .then((batch) => {
         if (!batch) return
         const summary = describeCounts(batch.counts)
-        toast(batch.errors.length > 0 ? 'warning' : 'success', `Imported ${batch.pageCount} page${batch.pageCount === 1 ? '' : 's'}: ${summary}`)
+        const text = `Imported ${batch.pageCount} page${batch.pageCount === 1 ? '' : 's'}: ${summary}`
+        // The next step is always to look at the batch: go straight there when
+        // pages need a decision, otherwise offer it on the toast.
+        if (batch.counts.needs_assignment + batch.counts.unreadable > 0) {
+          toast(batch.errors.length > 0 ? 'warning' : 'success', text)
+          openBatch(batch.id)
+        } else {
+          toast(batch.errors.length > 0 ? 'warning' : 'success', text, { label: 'Open', onClick: () => openBatch(batch.id) })
+        }
       })
       .catch((err: unknown) => toast('error', describeError(err)))
   }
+
+  const attention = attentionCount(batches)
+  const newestWithAttention = batches.find((b) => b.counts.needs_assignment + b.counts.unreadable > 0)
 
   const onDelete = (): void => {
     if (!pendingDelete) return
@@ -108,6 +120,20 @@ export function GradingPage(): JSX.Element {
         </Paper>
       ) : null}
 
+      {!importing && attention > 0 && newestWithAttention ? (
+        <Alert
+          severity="warning"
+          sx={{ mb: 3 }}
+          action={
+            <Button color="inherit" size="small" onClick={() => openBatch(newestWithAttention.id)}>
+              Review {attention} page{attention === 1 ? '' : 's'}
+            </Button>
+          }
+        >
+          {attention === 1 ? '1 page needs' : `${attention} pages need`} a decision before their sheets count.
+        </Alert>
+      ) : null}
+
       {!loading && batches.length === 0 && !importing ? (
         <EmptyState
           title="No scans yet"
@@ -126,7 +152,7 @@ export function GradingPage(): JSX.Element {
             <TableHead>
               <TableRow>
                 <TableCell>Imported</TableCell>
-                <TableCell>Files</TableCell>
+                <TableCell>Test</TableCell>
                 <TableCell align="right">Pages</TableCell>
                 <TableCell>Outcome</TableCell>
                 <TableCell padding="checkbox" />
@@ -134,12 +160,26 @@ export function GradingPage(): JSX.Element {
             </TableHead>
             <TableBody>
               {batches.map((batch) => (
-                <TableRow key={batch.id} hover onClick={() => openBatch(batch.id)} sx={{ cursor: 'pointer' }}>
+                <ClickableRow key={batch.id} onOpen={() => openBatch(batch.id)} label={`Open batch ${batch.sourceDescription}`}>
                   <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatShortDate(batch.importedAt)}</TableCell>
-                  <TableCell sx={{ maxWidth: 360 }}>
-                    <Typography variant="body2" noWrap title={batch.sourceDescription}>
-                      {batch.sourceDescription}
-                    </Typography>
+                  <TableCell sx={{ maxWidth: 420 }}>
+                    {batch.tests.length > 0 ? (
+                      <>
+                        <Typography variant="body2" noWrap title={batch.tests.map((t) => `${t.title} (${t.sectionName})`).join(', ')}>
+                          {batch.tests.map((t) => t.title).join(', ')}
+                          <Typography component="span" variant="body2" color="text.secondary">
+                            {batch.tests.length === 1 ? ` · ${batch.tests[0]?.sectionName ?? ''}` : ''}
+                          </Typography>
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }} title={batch.sourceDescription}>
+                          {batch.sourceDescription}
+                        </Typography>
+                      </>
+                    ) : (
+                      <Typography variant="body2" noWrap title={batch.sourceDescription}>
+                        {batch.sourceDescription}
+                      </Typography>
+                    )}
                     {batch.purgedAt ? (
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                         Page images purged {formatShortDate(batch.purgedAt)}
@@ -176,7 +216,7 @@ export function GradingPage(): JSX.Element {
                       </span>
                     </Tooltip>
                   </TableCell>
-                </TableRow>
+                </ClickableRow>
               ))}
             </TableBody>
           </Table>

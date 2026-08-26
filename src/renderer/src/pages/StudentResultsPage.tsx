@@ -10,6 +10,7 @@ import { describeError } from '@/lib/errors'
 import { formatShortDate } from '@/lib/format'
 import { flagLabel, formatPercent, percentOf } from '@/lib/grading'
 import { EmptyState } from '@/components/common/EmptyState'
+import { ClickableRow } from '@/components/common/ClickableRow'
 import { PageReviewDrawer } from '@/components/grading/PageReviewDrawer'
 
 /** Every graded test for one student, reached from the roster. */
@@ -81,7 +82,12 @@ export function StudentResultsPage(): JSX.Element {
             </TableHead>
             <TableBody>
               {rows.map((row) => (
-                <TableRow key={row.result.id} hover onClick={() => row.page && setReviewId(row.page.id)} sx={{ cursor: row.page ? 'pointer' : 'default' }}>
+                <ClickableRow
+                  key={row.result.id}
+                  onOpen={() => row.page && setReviewId(row.page.id)}
+                  disabled={!row.page}
+                  label={`Review ${row.test.title}`}
+                >
                   <TableCell>
                     <Typography
                       component="button"
@@ -110,7 +116,7 @@ export function StudentResultsPage(): JSX.Element {
                     </Stack>
                   </TableCell>
                   <TableCell align="center">{row.result.reviewed ? <CheckCircleIcon fontSize="small" color="success" /> : null}</TableCell>
-                </TableRow>
+                </ClickableRow>
               ))}
             </TableBody>
           </Table>
@@ -119,6 +125,8 @@ export function StudentResultsPage(): JSX.Element {
 
       <PageReviewDrawer
         pageId={reviewId}
+        pageIds={rows.flatMap((r) => (r.page ? [r.page.id] : []))}
+        onNavigate={setReviewId}
         onClose={() => setReviewId(null)}
         onChanged={() => {
           void load().catch((err: unknown) => toast('error', describeError(err)))

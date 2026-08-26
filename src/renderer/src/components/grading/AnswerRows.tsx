@@ -20,6 +20,11 @@ interface Props {
 
 const BLANK = 'blank'
 
+/** The chosen letter must read at a glance: bold, primary text and border, not just a faint fill. */
+export const ANSWER_GROUP_SX = {
+  '& .MuiToggleButton-root.Mui-selected': { fontWeight: 700, borderColor: 'primary.main' }
+} as const
+
 /**
  * One row per question: what was read, whether it matches the key, flags,
  * and an A-E + Blank toggle that records a teacher override. Rows with a
@@ -69,6 +74,7 @@ export function AnswerRows({ questions, result, page, busyQ, onOverride }: Props
               <ToggleButtonGroup
                 exclusive
                 size="small"
+                color="primary"
                 value={value}
                 disabled={busyQ === q}
                 onChange={(_, next: string | null) => {
@@ -77,13 +83,14 @@ export function AnswerRows({ questions, result, page, busyQ, onOverride }: Props
                   onOverride(q, choice === raw ? 'reset' : choice)
                 }}
                 aria-label={`Answer for question ${q + 1}`}
+                sx={ANSWER_GROUP_SX}
               >
                 {question.choices.map((_, c) => (
-                  <ToggleButton key={c} value={String(c)} sx={{ px: 1.25, py: 0.25, minWidth: 34 }}>
+                  <ToggleButton key={c} value={String(c)} sx={{ px: 1.25, py: 0.5, minWidth: 36 }}>
                     {CHOICE_LETTERS[c]}
                   </ToggleButton>
                 ))}
-                <ToggleButton value={BLANK} sx={{ px: 1.25, py: 0.25 }}>
+                <ToggleButton value={BLANK} sx={{ px: 1.25, py: 0.5 }}>
                   Blank
                 </ToggleButton>
               </ToggleButtonGroup>

@@ -1,4 +1,5 @@
 import type { JSX } from 'react'
+import { ClickableRow } from '@/components/common/ClickableRow'
 import { useState, type MouseEvent } from 'react'
 import { Chip, IconButton, Menu, MenuItem, Paper, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
@@ -41,7 +42,11 @@ export function TestsTable({ tests, showSection = false, onOpen, onResults, onCo
           </TableHead>
           <TableBody>
             {tests.map((test) => (
-              <TableRow key={test.id} hover onClick={() => (test.status === 'finalized' ? onResults(test) : onOpen(test))} sx={{ cursor: 'pointer' }}>
+              <ClickableRow
+                key={test.id}
+                onOpen={() => (test.status === 'finalized' ? onResults(test) : onOpen(test))}
+                label={`${test.status === 'finalized' ? 'Results for' : 'Open'} ${test.title}`}
+              >
                 <TableCell>
                   <Typography>{test.title}</Typography>
                 </TableCell>
@@ -75,7 +80,7 @@ export function TestsTable({ tests, showSection = false, onOpen, onResults, onCo
                     <MoreVertIcon fontSize="small" />
                   </IconButton>
                 </TableCell>
-              </TableRow>
+              </ClickableRow>
             ))}
           </TableBody>
         </Table>
