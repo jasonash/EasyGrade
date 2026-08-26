@@ -75,6 +75,8 @@ export function TestEditorPage(): JSX.Element {
   const titleRef = useRef<HTMLInputElement | null>(null)
   /** Set when a freshly created test loads; the effect below focuses the title once it is on screen. */
   const [selectTitle, setSelectTitle] = useState(false)
+  /** The question most recently added and how to reveal it; its card acts on mount, so the value can simply stay until the next add. */
+  const [reveal, setReveal] = useState<{ key: number; mode: 'scroll' | 'focus' } | null>(null)
   stateRef.current = state
 
   const readOnly = test?.status === 'finalized'
@@ -341,6 +343,7 @@ export function TestEditorPage(): JSX.Element {
               question={question}
               measure={measure.questions[index]}
               readOnly={readOnly}
+              reveal={reveal?.key === question.key ? reveal.mode : undefined}
               onChange={(next) => {
                 if (readOnly) {
                   if (next.correctChoice === question.correctChoice) return
@@ -369,7 +372,11 @@ export function TestEditorPage(): JSX.Element {
                 variant="outlined"
                 startIcon={<AddIcon />}
                 disabled={state.questions.length >= MAX_QUESTIONS}
-                onClick={() => edit({ ...state, questions: [...state.questions, blankQuestion()] })}
+                onClick={() => {
+                  const added = blankQuestion()
+                  setReveal({ key: added.key, mode: 'focus' })
+                  edit({ ...state, questions: [...state.questions, added] })
+                }}
               >
                 Question
               </Button>
@@ -405,6 +412,8 @@ export function TestEditorPage(): JSX.Element {
         onImport={(imported, mode) => {
           const kept = mode === 'replace' ? [] : state.questions.filter((q) => !isBlankQuestion(q))
           const added = imported.map((q) => ({ key: nextKey++, stem: q.stem, choices: [...q.choices], correctChoice: q.correctChoice }))
+          const first = added[0]
+          if (first) setReveal({ key: first.key, mode: 'scroll' })
           edit({ ...state, questions: [...kept, ...added].slice(0, MAX_QUESTIONS) })
           toast('success', `${added.length} question${added.length === 1 ? '' : 's'} added. Check the answers and the fit meter.`)
         }}
