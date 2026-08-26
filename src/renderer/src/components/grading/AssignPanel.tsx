@@ -59,6 +59,7 @@ export function AssignPanel({ page, reassign = false, onAssigned, onDiscarded, o
   const tests = useTestsStore((s) => s.tests)
   const loadTests = useTestsStore((s) => s.load)
   const sections = useSectionsStore((s) => s.sections)
+  const batch = useScanStore((s) => s.batches.find((b) => b.id === page.batchId) ?? null)
   const assignPage = useScanStore((s) => s.assignPage)
   const discardPage = useScanStore((s) => s.discardPage)
   const resolveConflict = useScanStore((s) => s.resolveConflict)
@@ -85,10 +86,14 @@ export function AssignPanel({ page, reassign = false, onAssigned, onDiscarded, o
     if (tests.length === 0) void loadTests().catch((err: unknown) => toast('error', describeError(err)))
   }, [tests.length, loadTests, toast])
 
-  // Default to the only finalized test when the page did not name one.
+  // When the page did not name a test, assume the one the rest of the batch
+  // belongs to (a blank sheet in a stack of one quiz), else the only finalized test.
   useEffect(() => {
-    if (testId === null && finalized.length === 1) setTestId(finalized[0]?.id ?? null)
-  }, [testId, finalized])
+    if (testId !== null) return
+    const batchTest = batch && batch.tests.length === 1 ? batch.tests[0] : undefined
+    if (batchTest && finalized.some((t) => t.id === batchTest.id)) setTestId(batchTest.id)
+    else if (finalized.length === 1) setTestId(finalized[0]?.id ?? null)
+  }, [testId, finalized, batch])
 
   // Load the chosen test (questions, section) and reset the manual answers.
   useEffect(() => {
@@ -145,11 +150,13 @@ export function AssignPanel({ page, reassign = false, onAssigned, onDiscarded, o
         setExisting(row.result)
         if (row.page) setExistingPage(await unwrap(api.scan.getPage(row.page.id)))
       })
-      .catch(() => undefined)
+      .catch((err: unknown) => {
+        if (!cancelled) toast('error', `Could not load the existing result: ${describeError(err)}`)
+      })
     return () => {
       cancelled = true
     }
-  }, [importConflict, page.studentId, page.testId])
+  }, [importConflict, page.studentId, page.testId, toast])
 
   const selectedOption = roster.find((o) => o.student.id === studentId) ?? null
   const rosterMissingSelection = studentId !== null && roster.length > 0 && !selectedOption

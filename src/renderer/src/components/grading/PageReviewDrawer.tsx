@@ -67,12 +67,18 @@ export function PageReviewDrawer({ pageId, pageIds, onNavigate, onClose, onChang
       const loaded = await getPage(id)
       setPage(loaded)
       if (loaded.testId !== null) {
-        setTest(await unwrap(api.tests.get(loaded.testId)).catch(() => null))
+        // Without the test there is no answer key to show, but the page itself can still be assigned or discarded.
+        setTest(
+          await unwrap(api.tests.get(loaded.testId)).catch((err: unknown) => {
+            toast('error', `Could not load the test for this page: ${describeError(err)}`)
+            return null
+          })
+        )
       } else {
         setTest(null)
       }
     },
-    [getPage]
+    [getPage, toast]
   )
 
   useEffect(() => {

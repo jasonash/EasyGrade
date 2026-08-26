@@ -104,7 +104,7 @@ export function BatchReviewPage(): JSX.Element {
     } finally {
       setBulkBusy(false)
       setBulk(null)
-      await reloadBatches().catch(() => undefined)
+      await reloadBatches().catch((err: unknown) => toast('error', describeError(err)))
       refresh()
     }
   }
