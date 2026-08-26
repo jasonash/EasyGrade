@@ -76,9 +76,7 @@ export function StudentResultsPage(): JSX.Element {
                 <TableCell align="right">%</TableCell>
                 <TableCell>Graded</TableCell>
                 <TableCell>Flags</TableCell>
-                <TableCell align="center" width={48}>
-                  <CheckCircleIcon fontSize="inherit" />
-                </TableCell>
+                <TableCell align="center">Reviewed</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>

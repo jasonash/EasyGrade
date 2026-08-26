@@ -6,6 +6,7 @@ import {
   Divider,
   FormControl,
   FormControlLabel,
+  FormHelperText,
   FormLabel,
   Paper,
   Radio,
@@ -22,6 +23,7 @@ import RestoreIcon from '@mui/icons-material/Restore'
 import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import SystemUpdateAltIcon from '@mui/icons-material/SystemUpdateAlt'
 import type { AppInfo, BackupStatus, PurgePreview, ThemeMode, UpdateState } from '@shared/types'
+import { TextSizeSchema } from '@shared/schemas'
 import { api, unwrap } from '@/api'
 import { useSettingsStore } from '@/stores/settings.store'
 import { useUiStore } from '@/stores/ui.store'
@@ -93,6 +95,11 @@ export function SettingsPage(): JSX.Element {
 
   const setTheme = (mode: ThemeMode): void => {
     void save({ theme: mode })
+  }
+
+  const setTextSize = (value: string): void => {
+    const parsed = TextSizeSchema.safeParse(value)
+    if (parsed.success) void save({ textSize: parsed.data })
   }
 
   const previewPurge = (): void => {
@@ -180,13 +187,32 @@ export function SettingsPage(): JSX.Element {
         {reloadNotice ? <Alert severity="info">{reloadNotice}</Alert> : null}
 
         <Paper variant="outlined" sx={{ p: 3 }}>
-          <FormControl>
-            <FormLabel>Appearance</FormLabel>
-            <RadioGroup row value={settings.theme} onChange={(e) => setTheme(e.target.value === 'light' ? 'light' : 'dark')}>
-              <FormControlLabel value="dark" control={<Radio />} label="Dark" />
-              <FormControlLabel value="light" control={<Radio />} label="Light" />
-            </RadioGroup>
-          </FormControl>
+          <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5 }}>
+            Appearance
+          </Typography>
+          <Stack spacing={2}>
+            <FormControl>
+              <FormLabel id="theme-label">Theme</FormLabel>
+              <RadioGroup
+                row
+                aria-labelledby="theme-label"
+                value={settings.theme}
+                onChange={(e) => setTheme(e.target.value === 'light' ? 'light' : 'dark')}
+              >
+                <FormControlLabel value="dark" control={<Radio />} label="Dark" />
+                <FormControlLabel value="light" control={<Radio />} label="Light" />
+              </RadioGroup>
+            </FormControl>
+            <FormControl>
+              <FormLabel id="text-size-label">Text size</FormLabel>
+              <RadioGroup row aria-labelledby="text-size-label" value={settings.textSize} onChange={(e) => setTextSize(e.target.value)}>
+                <FormControlLabel value="normal" control={<Radio />} label="Normal" />
+                <FormControlLabel value="large" control={<Radio />} label="Large" />
+                <FormControlLabel value="larger" control={<Radio />} label="Larger" />
+              </RadioGroup>
+              <FormHelperText>Scales everything in the window, including tables and the sheet preview.</FormHelperText>
+            </FormControl>
+          </Stack>
         </Paper>
 
         <Paper variant="outlined" sx={{ p: 3 }}>

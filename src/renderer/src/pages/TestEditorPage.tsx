@@ -218,7 +218,7 @@ export function TestEditorPage(): JSX.Element {
             slotProps={{ input: { readOnly, sx: { fontSize: 22, fontWeight: 600 } } }}
             inputProps={{ 'aria-label': 'Test title' }}
           />
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" color="text.secondary" aria-live="polite">
             {test.sectionName} · Code {test.code} ·{' '}
             {readOnly ? `Finalized, layout v${test.layoutVersion}` : saveLabel}
           </Typography>

@@ -29,7 +29,8 @@ export function ConfirmDialog({
         <DialogContentText component="div">{message}</DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={busy}>
+        {/* Enter must never delete by accident: destructive dialogs start on Cancel. */}
+        <Button onClick={onClose} disabled={busy} autoFocus={destructive}>
           Cancel
         </Button>
         <Button
@@ -37,7 +38,7 @@ export function ConfirmDialog({
           color={destructive ? 'error' : 'primary'}
           onClick={onConfirm}
           disabled={busy}
-          autoFocus
+          autoFocus={!destructive}
         >
           {confirmLabel}
         </Button>

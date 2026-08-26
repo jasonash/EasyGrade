@@ -125,13 +125,18 @@ export function AppShell({ children }: { children: ReactNode }): JSX.Element {
       >
         <Toolbar variant="dense" />
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-          <List sx={{ px: 1, pt: 1 }}>
+          <List component="nav" aria-label="Main" sx={{ px: 1, pt: 1 }}>
             {NAV_ITEMS.map((item) => (
               <ListItemButton
                 key={item.page}
                 selected={isNavActive(item.page, page, editorReturn, resultsReturn)}
                 onClick={() => navigate(item.page)}
                 sx={{ borderRadius: 1, mb: 0.5 }}
+                aria-label={
+                  item.page === 'grading' && attention > 0
+                    ? `Grading, ${attention} ${attention === 1 ? 'page needs' : 'pages need'} attention`
+                    : undefined
+                }
               >
                 <ListItemIcon sx={{ minWidth: 36 }}>
                   {item.page === 'grading' && attention > 0 ? (
@@ -147,7 +152,7 @@ export function AppShell({ children }: { children: ReactNode }): JSX.Element {
             ))}
           </List>
           <Box sx={{ flexGrow: 1 }} />
-          <List sx={{ px: 1, pb: 1 }}>
+          <List component="nav" aria-label="Settings" sx={{ px: 1, pb: 1 }}>
             <ListItemButton
               selected={page === 'settings'}
               onClick={() => navigate('settings')}

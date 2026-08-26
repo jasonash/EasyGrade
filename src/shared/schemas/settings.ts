@@ -3,6 +3,12 @@ import { z } from 'zod'
 export const ThemeModeSchema = z.enum(['dark', 'light'])
 export type ThemeMode = z.infer<typeof ThemeModeSchema>
 
+export const TextSizeSchema = z.enum(['normal', 'large', 'larger'])
+export type TextSize = z.infer<typeof TextSizeSchema>
+
+/** Window zoom factor for each text size; applied through the preload. */
+export const TEXT_SIZE_ZOOM: Record<TextSize, number> = { normal: 1, large: 1.15, larger: 1.3 }
+
 /**
  * Setting fields without defaults. Defaults live in DEFAULT_SETTINGS and are
  * merged in by SettingsSchema, so a patch never carries defaults for keys it
@@ -11,6 +17,7 @@ export type ThemeMode = z.infer<typeof ThemeModeSchema>
  */
 const fields = {
   theme: ThemeModeSchema,
+  textSize: TextSizeSchema,
   scanRetentionDays: z.number().int().min(1).max(3650),
   defaultBlankCopies: z.number().int().min(0).max(50),
   lastExportDir: z.string().nullable(),
@@ -29,6 +36,7 @@ export type SettingsKey = keyof Settings
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: 'dark',
+  textSize: 'normal',
   scanRetentionDays: 180,
   defaultBlankCopies: 2,
   lastExportDir: null,

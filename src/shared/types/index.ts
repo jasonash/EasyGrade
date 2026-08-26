@@ -63,6 +63,7 @@ export type {
   TestUpdateInput,
   DraftQuestion,
   StoredQuestion,
+  TextSize,
   ThemeMode
 } from '../schemas'
 

@@ -12,10 +12,17 @@ export type Page =
   | 'settings'
 export type SectionTab = 'roster' | 'tests'
 
+export interface ToastAction {
+  label: string
+  onClick: () => void
+}
+
 export interface ToastMessage {
   id: number
   severity: 'success' | 'info' | 'warning' | 'error'
   text: string
+  /** Optional button on the toast, e.g. Undo after a reversible change. */
+  action?: ToastAction
 }
 
 interface UiState {
@@ -41,7 +48,7 @@ interface UiState {
   openTestResults: (testId: number) => void
   openStudentResults: (studentId: number) => void
   closeResults: () => void
-  toast: (severity: ToastMessage['severity'], text: string) => void
+  toast: (severity: ToastMessage['severity'], text: string, action?: ToastAction) => void
   dismissToast: (id: number) => void
 }
 
@@ -86,7 +93,13 @@ export const useUiStore = create<UiState>((set) => ({
       resultsReturnPage: RESULTS_PAGES.includes(state.page) ? state.resultsReturnPage : state.page
     })),
   closeResults: () => set((state) => ({ page: state.resultsReturnPage })),
-  toast: (severity, text) =>
-    set((state) => ({ toasts: [...state.toasts, { id: nextToastId++, severity, text }] })),
+  toast: (severity, text, action) =>
+    set((state) => {
+      // Repeating the same message (rapid key edits, retried saves) would queue
+      // a parade of identical toasts; one is enough.
+      const last = state.toasts[state.toasts.length - 1]
+      if (last && last.severity === severity && last.text === text && !action) return state
+      return { toasts: [...state.toasts, { id: nextToastId++, severity, text, action }] }
+    }),
   dismissToast: (id) => set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }))
 }))
