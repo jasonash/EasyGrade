@@ -7,17 +7,20 @@ import {
   Chip,
   IconButton,
   LinearProgress,
+  ListItemIcon,
+  Menu,
+  MenuItem,
   Paper,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
-  Tooltip,
   Typography
 } from '@mui/material'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import MoreVertIcon from '@mui/icons-material/MoreVert'
 import type { ScanBatch } from '@shared/types'
 import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState } from '@/components/common/EmptyState'
@@ -46,6 +49,7 @@ export function GradingPage(): JSX.Element {
   const openBatch = useUiStore((s) => s.openBatch)
   const [pendingDelete, setPendingDelete] = useState<ScanBatch | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [menu, setMenu] = useState<{ el: HTMLElement; batch: ScanBatch } | null>(null)
 
   useEffect(() => {
     void load().catch((err: unknown) => toast('error', describeError(err)))
@@ -200,21 +204,17 @@ export function GradingPage(): JSX.Element {
                     )}
                   </TableCell>
                   <TableCell padding="checkbox">
-                    <Tooltip title="Delete batch">
-                      <span>
-                        <IconButton
-                          size="small"
-                          aria-label="Delete batch"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setPendingDelete(batch)
-                          }}
-                          disabled={importing}
-                        >
-                          <DeleteOutlineIcon fontSize="small" />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
+                    <IconButton
+                      size="small"
+                      aria-label="Batch actions"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setMenu({ el: e.currentTarget, batch })
+                      }}
+                      disabled={importing}
+                    >
+                      <MoreVertIcon fontSize="small" />
+                    </IconButton>
                   </TableCell>
                 </ClickableRow>
               ))}
@@ -222,6 +222,29 @@ export function GradingPage(): JSX.Element {
           </Table>
         </Paper>
       ) : null}
+
+      <Menu anchorEl={menu?.el} open={menu !== null} onClose={() => setMenu(null)}>
+        <MenuItem
+          onClick={() => {
+            if (menu) openBatch(menu.batch.id)
+            setMenu(null)
+          }}
+        >
+          Open
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            if (menu) setPendingDelete(menu.batch)
+            setMenu(null)
+          }}
+          sx={{ color: 'error.main' }}
+        >
+          <ListItemIcon>
+            <DeleteOutlineIcon fontSize="small" color="error" />
+          </ListItemIcon>
+          Delete batch
+        </MenuItem>
+      </Menu>
 
       <ConfirmDialog
         open={pendingDelete !== null}

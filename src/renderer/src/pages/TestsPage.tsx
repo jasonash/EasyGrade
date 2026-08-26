@@ -1,26 +1,24 @@
 import type { JSX } from 'react'
-import { Typography } from '@mui/material'
+import { useState } from 'react'
 import { PageHeader } from '@/components/common/PageHeader'
-import { TestsList } from '@/components/tests/TestsList'
+import { NewTestButton, TestsList } from '@/components/tests/TestsList'
 import { useSchoolYearFilter } from '@/lib/schoolYear'
 import { ALL_YEARS } from '@/lib/schoolYear'
 
 export function TestsPage(): JSX.Element {
   const { year } = useSchoolYearFilter()
+  const [newOpen, setNewOpen] = useState(false)
   return (
     <>
       <PageHeader
         title="Tests"
-        subtitle="Single-page multiple-choice tests"
-        actions={
-          year !== ALL_YEARS ? (
-            <Typography variant="body2" color="text.secondary" sx={{ alignSelf: 'center' }}>
-              Showing {year}
-            </Typography>
-          ) : undefined
-        }
+        subtitle={`Single-page multiple-choice tests${year !== ALL_YEARS ? ` · showing ${year}` : ''}`}
+        actions={<NewTestButton onClick={() => setNewOpen(true)} />}
       />
-      <TestsList filter={(t) => year === ALL_YEARS || t.schoolYear === '' || t.schoolYear === year} />
+      <TestsList
+        filter={(t) => year === ALL_YEARS || t.schoolYear === '' || t.schoolYear === year}
+        newTest={{ open: newOpen, onOpen: () => setNewOpen(true), onClose: () => setNewOpen(false) }}
+      />
     </>
   )
 }

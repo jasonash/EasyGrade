@@ -3,8 +3,10 @@ import { useEffect, useState, type MouseEvent } from 'react'
 import {
   Button,
   Chip,
+  Divider,
   FormControlLabel,
   IconButton,
+  ListItemIcon,
   Menu,
   MenuItem,
   Paper,
@@ -15,11 +17,10 @@ import {
   TableBody,
   TableCell,
   TableHead,
-  TableRow,
-  Tooltip,
-  Typography
+  TableRow
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown'
 import UploadIcon from '@mui/icons-material/Upload'
 import ContentPasteIcon from '@mui/icons-material/ContentPaste'
 import DownloadIcon from '@mui/icons-material/Download'
@@ -56,6 +57,7 @@ export function RosterTab({ section }: Props): JSX.Element {
   const [deleteTarget, setDeleteTarget] = useState<Student | null>(null)
   const [importSource, setImportSource] = useState<ImportSource | null>(null)
   const [menu, setMenu] = useState<{ el: HTMLElement; student: Student } | null>(null)
+  const [importMenu, setImportMenu] = useState<HTMLElement | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -154,42 +156,63 @@ export function RosterTab({ section }: Props): JSX.Element {
     setMenu({ el: event.currentTarget, student })
   const closeMenu = (): void => setMenu(null)
 
-  const activeCount = students.filter((s) => s.active).length
   const showTable = students.length > 0
 
   return (
     <>
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
-        <Typography variant="h6">Roster ({activeCount})</Typography>
-        <Stack direction="row" spacing={1} sx={{ ml: 'auto' }} flexWrap="wrap" useFlexGap>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setStudentDialog({ open: true, student: null })}
-            disabled={busy}
-          >
-            Add Student
-          </Button>
-          <Button variant="outlined" startIcon={<UploadIcon />} onClick={() => void importCsv()} disabled={busy}>
-            Import CSV
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<ContentPasteIcon />}
-            onClick={() => setImportSource({ kind: 'paste' })}
-            disabled={busy}
-          >
-            Paste from Sheet
-          </Button>
-          <Tooltip title="Save the CSV template">
-            <span>
-              <IconButton onClick={() => void saveTemplate()} disabled={busy} aria-label="Save CSV template">
-                <DownloadIcon />
-              </IconButton>
-            </span>
-          </Tooltip>
-        </Stack>
+      {/* The tab already says "Roster (29)", so the toolbar is just the two actions. */}
+      <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setStudentDialog({ open: true, student: null })} disabled={busy}>
+          Add Student
+        </Button>
+        <Button
+          variant="outlined"
+          startIcon={<UploadIcon />}
+          endIcon={<ArrowDropDownIcon />}
+          onClick={(e) => setImportMenu(e.currentTarget)}
+          disabled={busy}
+          aria-haspopup="menu"
+        >
+          Import
+        </Button>
       </Stack>
+
+      <Menu anchorEl={importMenu} open={importMenu !== null} onClose={() => setImportMenu(null)}>
+        <MenuItem
+          onClick={() => {
+            setImportMenu(null)
+            void importCsv()
+          }}
+        >
+          <ListItemIcon>
+            <UploadIcon fontSize="small" />
+          </ListItemIcon>
+          Import CSV file...
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setImportMenu(null)
+            setImportSource({ kind: 'paste' })
+          }}
+        >
+          <ListItemIcon>
+            <ContentPasteIcon fontSize="small" />
+          </ListItemIcon>
+          Paste from spreadsheet...
+        </MenuItem>
+        <Divider />
+        <MenuItem
+          onClick={() => {
+            setImportMenu(null)
+            void saveTemplate()
+          }}
+        >
+          <ListItemIcon>
+            <DownloadIcon fontSize="small" />
+          </ListItemIcon>
+          Save the CSV template...
+        </MenuItem>
+      </Menu>
 
       {loading && !showTable ? (
         <Skeleton variant="rounded" height={160} />
