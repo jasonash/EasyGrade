@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, screen, shell } from 'electron'
 import { hostname } from 'os'
 import { rmSync } from 'fs'
 import { join } from 'path'
@@ -9,6 +9,7 @@ import { DataStore } from './data-store'
 import { registerIpcHandlers, registerUpdateHandlers, wireScanProgress, wireUpdateStatus } from './ipc'
 import { UpdateService } from './services/update.service'
 import { handleScanProtocol, registerScanScheme } from './scan-protocol'
+import { fitToDisplays, WindowStateFile, type Rect } from './window-state'
 
 const APP_ID = 'com.jasonash.easygrade'
 const DARK_BACKGROUND = '#14171c'
@@ -73,21 +74,58 @@ function createSplashWindow(): void {
 }
 
 /** Close the splash (after its minimum time) and reveal the main window. */
-function revealAfterSplash(mainWindow: BrowserWindow): void {
+function revealAfterSplash(mainWindow: BrowserWindow, maximize: boolean): void {
   const remaining = splashWindow ? Math.max(0, MINIMUM_SPLASH_MS - (Date.now() - splashShownAt)) : 0
   setTimeout(() => {
     if (splashWindow && !splashWindow.isDestroyed()) splashWindow.close()
     splashWindow = null
-    if (!mainWindow.isDestroyed()) mainWindow.show()
+    if (mainWindow.isDestroyed()) return
+    mainWindow.show()
+    // Maximize only once the window is on screen: before that macOS has no
+    // "normal" size to fall back to and reports the maximized rectangle as it.
+    if (maximize) mainWindow.maximize()
   }, remaining)
 }
 
+const WINDOW_DEFAULTS = { width: 1280, height: 820, minWidth: 1024, minHeight: 700 }
+
+/**
+ * Save the window's normal (unmaximized) bounds a moment after it stops
+ * moving, and again on close. The normal bounds are tracked here rather than
+ * read back through getNormalBounds(), which is unreliable around maximize.
+ */
+function rememberWindowState(mainWindow: BrowserWindow, file: WindowStateFile, initial: Rect): void {
+  let normal = initial
+  let timer: NodeJS.Timeout | null = null
+  const save = (): void => {
+    if (mainWindow.isDestroyed()) return
+    const maximized = mainWindow.isMaximized()
+    if (!maximized && mainWindow.isVisible()) normal = mainWindow.getBounds()
+    file.write({ bounds: normal, maximized })
+  }
+  const later = (): void => {
+    if (timer) clearTimeout(timer)
+    timer = setTimeout(save, 500)
+  }
+  mainWindow.on('resize', later)
+  mainWindow.on('move', later)
+  mainWindow.on('close', () => {
+    if (timer) clearTimeout(timer)
+    save()
+  })
+}
+
 function createWindow(): void {
+  const stateFile = new WindowStateFile(join(app.getPath('userData'), 'window-state.json'))
+  const remembered = stateFile.read()
+  const workAreas = [screen.getPrimaryDisplay(), ...screen.getAllDisplays().filter((d) => d.id !== screen.getPrimaryDisplay().id)].map(
+    (d) => d.workArea
+  )
+  const bounds = fitToDisplays(remembered.bounds, workAreas, WINDOW_DEFAULTS)
   const mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 820,
-    minWidth: 1024,
-    minHeight: 700,
+    ...bounds,
+    minWidth: WINDOW_DEFAULTS.minWidth,
+    minHeight: WINDOW_DEFAULTS.minHeight,
     show: false,
     autoHideMenuBar: true,
     backgroundColor: DARK_BACKGROUND,
@@ -99,7 +137,8 @@ function createWindow(): void {
     }
   })
 
-  mainWindow.once('ready-to-show', () => revealAfterSplash(mainWindow))
+  rememberWindowState(mainWindow, stateFile, mainWindow.getBounds())
+  mainWindow.once('ready-to-show', () => revealAfterSplash(mainWindow, remembered.maximized))
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     void shell.openExternal(details.url)
