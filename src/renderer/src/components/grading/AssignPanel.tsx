@@ -18,7 +18,7 @@ import {
   ToggleButtonGroup,
   Typography
 } from '@mui/material'
-import type { GradeResult, ScanPageDetail, Student, Test } from '@shared/types'
+import type { GradeResult, ScanBatch, ScanPageDetail, Student, Test } from '@shared/types'
 import { CHOICE_LETTERS } from '@shared/layout'
 import { scanImageUrl } from '@shared/scan-url'
 import { api, unwrap } from '@/api'
@@ -59,7 +59,7 @@ export function AssignPanel({ page, reassign = false, onAssigned, onDiscarded, o
   const tests = useTestsStore((s) => s.tests)
   const loadTests = useTestsStore((s) => s.load)
   const sections = useSectionsStore((s) => s.sections)
-  const batch = useScanStore((s) => s.batches.find((b) => b.id === page.batchId) ?? null)
+  const getBatch = useScanStore((s) => s.getBatch)
   const assignPage = useScanStore((s) => s.assignPage)
   const discardPage = useScanStore((s) => s.discardPage)
   const resolveConflict = useScanStore((s) => s.resolveConflict)
@@ -81,17 +81,34 @@ export function AssignPanel({ page, reassign = false, onAssigned, onDiscarded, o
   const [existing, setExisting] = useState<GradeResult | null>(null)
   const [existingPage, setExistingPage] = useState<ScanPageDetail | null>(null)
   const [someoneElse, setSomeoneElse] = useState(false)
+  const [batch, setBatch] = useState<ScanBatch | null>(null)
+
+  // The batch this page came from, for the default test below. Fetched here
+  // rather than read from the batch list, which may not have caught up yet.
+  useEffect(() => {
+    let cancelled = false
+    void getBatch(page.batchId)
+      .then((loaded) => {
+        if (!cancelled) setBatch(loaded)
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) toast('error', describeError(err))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [page.batchId, getBatch, toast])
 
   useEffect(() => {
     if (tests.length === 0) void loadTests().catch((err: unknown) => toast('error', describeError(err)))
   }, [tests.length, loadTests, toast])
 
-  // When the page did not name a test, assume the one the rest of the batch
+  // When the page did not name a test, assume the one most of the batch
   // belongs to (a blank sheet in a stack of one quiz), else the only finalized test.
   useEffect(() => {
     if (testId !== null) return
-    const batchTest = batch && batch.tests.length === 1 ? batch.tests[0] : undefined
-    if (batchTest && finalized.some((t) => t.id === batchTest.id)) setTestId(batchTest.id)
+    const batchTest = batch?.tests.find((t) => finalized.some((f) => f.id === t.id))
+    if (batchTest) setTestId(batchTest.id)
     else if (finalized.length === 1) setTestId(finalized[0]?.id ?? null)
   }, [testId, finalized, batch])
 

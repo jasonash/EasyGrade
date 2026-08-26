@@ -73,6 +73,8 @@ export function TestEditorPage(): JSX.Element {
   const dirtyRef = useRef(false)
   const timerRef = useRef<number | null>(null)
   const titleRef = useRef<HTMLInputElement | null>(null)
+  /** Set when a freshly created test loads; the effect below focuses the title once it is on screen. */
+  const [selectTitle, setSelectTitle] = useState(false)
   stateRef.current = state
 
   const readOnly = test?.status === 'finalized'
@@ -89,12 +91,7 @@ export function TestEditorPage(): JSX.Element {
         setSaveState('saved')
         // A test made without a title (New Test from a section) starts with the
         // placeholder selected, so the first keystroke replaces it.
-        if (loaded.status === 'draft' && loaded.title === DEFAULT_TEST_TITLE && loaded.questions.every((q) => q.stem === '')) {
-          window.setTimeout(() => {
-            titleRef.current?.focus()
-            titleRef.current?.select()
-          }, 0)
-        }
+        setSelectTitle(loaded.status === 'draft' && loaded.title === DEFAULT_TEST_TITLE && loaded.questions.every((q) => q.stem === ''))
       })
       .catch((err: unknown) => {
         toast('error', describeError(err))
@@ -104,6 +101,14 @@ export function TestEditorPage(): JSX.Element {
       cancelled = true
     }
   }, [testId, get, toast, closeEditor])
+
+  // The title field only exists once the skeleton is gone, so focus after that commit.
+  useEffect(() => {
+    if (!selectTitle || !test || !titleRef.current) return
+    titleRef.current.focus()
+    titleRef.current.select()
+    setSelectTitle(false)
+  }, [selectTitle, test])
 
   const save = useCallback(async (): Promise<void> => {
     const current = stateRef.current
