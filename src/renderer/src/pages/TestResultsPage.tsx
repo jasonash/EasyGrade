@@ -38,6 +38,7 @@ import { describeError } from '@/lib/errors'
 import { choiceLetter, formatPercent, percentOf } from '@/lib/grading'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ClickableRow } from '@/components/common/ClickableRow'
+import { LinkButton } from '@/components/common/LinkButton'
 import { PageHeader } from '@/components/common/PageHeader'
 import { FlagChips } from '@/components/grading/FlagChips'
 import { PageReviewDrawer } from '@/components/grading/PageReviewDrawer'
@@ -50,6 +51,7 @@ export function TestResultsPage(): JSX.Element {
   const testId = useUiStore((s) => s.resultsTestId)
   const closeResults = useUiStore((s) => s.closeResults)
   const openTest = useUiStore((s) => s.openTest)
+  const openStudentResults = useUiStore((s) => s.openStudentResults)
   const toast = useUiStore((s) => s.toast)
   const reloadTests = useTestsStore((s) => s.load)
 
@@ -244,7 +246,9 @@ export function TestResultsPage(): JSX.Element {
                       label={`Review ${row.student.lastName}, ${row.student.firstName}`}
                     >
                       <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                        {row.student.lastName}, {row.student.firstName}
+                        <LinkButton onClick={() => openStudentResults(row.student.id)}>
+                          {row.student.lastName}, {row.student.firstName}
+                        </LinkButton>
                         {!row.student.active ? <Chip size="small" label="Inactive" sx={{ ml: 1 }} /> : null}
                       </TableCell>
                       <TableCell align="right">

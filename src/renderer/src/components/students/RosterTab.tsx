@@ -34,6 +34,7 @@ import { describeError } from '@/lib/errors'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Code } from '@/components/common/Code'
+import { ClickableRow } from '@/components/common/ClickableRow'
 import { StudentDialog, type StudentFormValues } from './StudentDialog'
 import { MoveStudentDialog } from './MoveStudentDialog'
 import { ImportDialog, type ImportSource } from './ImportDialog'
@@ -250,7 +251,12 @@ export function RosterTab({ section }: Props): JSX.Element {
             </TableHead>
             <TableBody>
               {students.map((student) => (
-                <TableRow key={student.id} hover sx={{ opacity: student.active ? 1 : 0.6 }}>
+                <ClickableRow
+                  key={student.id}
+                  onOpen={() => openStudentResults(student.id)}
+                  label={`Results for ${student.lastName}, ${student.firstName}`}
+                  sx={{ opacity: student.active ? 1 : 0.6 }}
+                >
                   <TableCell>{student.lastName}</TableCell>
                   <TableCell>{student.firstName}</TableCell>
                   <TableCell>{student.studentNumber ?? ''}</TableCell>
@@ -265,11 +271,18 @@ export function RosterTab({ section }: Props): JSX.Element {
                     )}
                   </TableCell>
                   <TableCell align="right">
-                    <IconButton size="small" onClick={(e) => openMenu(e, student)} aria-label="Student actions">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openMenu(e, student)
+                      }}
+                      aria-label="Student actions"
+                    >
                       <MoreVertIcon fontSize="small" />
                     </IconButton>
                   </TableCell>
-                </TableRow>
+                </ClickableRow>
               ))}
             </TableBody>
           </Table>
