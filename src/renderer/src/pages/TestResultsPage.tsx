@@ -5,6 +5,9 @@ import {
   Button,
   Chip,
   IconButton,
+  ListItemIcon,
+  Menu,
+  MenuItem,
   Paper,
   Skeleton,
   Stack,
@@ -19,11 +22,11 @@ import {
   Tooltip,
   Typography
 } from '@mui/material'
-import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import DoneAllIcon from '@mui/icons-material/DoneAll'
 import DownloadIcon from '@mui/icons-material/Download'
 import EditIcon from '@mui/icons-material/Edit'
+import MoreVertIcon from '@mui/icons-material/MoreVert'
 import PrintIcon from '@mui/icons-material/Print'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import type { TestResults } from '@shared/types'
@@ -32,9 +35,11 @@ import { useTestsStore } from '@/stores/tests.store'
 import { api, unwrap } from '@/api'
 import { gradingApi } from '@/lib/grading-api'
 import { describeError } from '@/lib/errors'
-import { choiceLetter, flagLabel, formatPercent, percentOf } from '@/lib/grading'
+import { choiceLetter, formatPercent, percentOf } from '@/lib/grading'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ClickableRow } from '@/components/common/ClickableRow'
+import { PageHeader } from '@/components/common/PageHeader'
+import { FlagChips } from '@/components/grading/FlagChips'
 import { PageReviewDrawer } from '@/components/grading/PageReviewDrawer'
 import { PrintDialog } from '@/components/print/PrintDialog'
 
@@ -54,6 +59,7 @@ export function TestResultsPage(): JSX.Element {
   const [reviewId, setReviewId] = useState<number | null>(null)
   const [printOpen, setPrintOpen] = useState(false)
   const [filter, setFilter] = useState<RowFilter>('all')
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
 
   const load = useCallback(async (): Promise<void> => {
     if (testId === null) return
@@ -129,37 +135,57 @@ export function TestResultsPage(): JSX.Element {
 
   return (
     <>
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
-        <IconButton onClick={closeResults} aria-label="Back" edge="start">
-          <ArrowBackIcon />
-        </IconButton>
-        <Box sx={{ flexGrow: 1, minWidth: 240 }}>
-          <Typography variant="h5" sx={{ fontWeight: 600 }}>
-            {test.title}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {test.sectionName} · Results · layout v{test.layoutVersion}
-          </Typography>
-        </Box>
-        <Button variant="outlined" startIcon={<DownloadIcon />} onClick={exportCsv} disabled={busy || rows.length === 0}>
-          Export CSV
-        </Button>
-        <Tooltip title="Rescore every result against the current answer key. Key changes already do this automatically.">
-          <span>
-            <Button variant="outlined" startIcon={<RefreshIcon />} onClick={regrade} disabled={busy || rows.length === 0}>
-              Regrade
+      <PageHeader
+        title={test.title}
+        subtitle={`${test.sectionName} · Results · layout v${test.layoutVersion}`}
+        onBack={closeResults}
+        actions={
+          <>
+            <Button variant="outlined" startIcon={<EditIcon />} onClick={() => openTest(test.id)}>
+              Open test
             </Button>
+            {missing.length > 0 ? (
+              <Button variant="contained" startIcon={<PrintIcon />} onClick={() => setPrintOpen(true)}>
+                Make-up sheets ({missing.length})
+              </Button>
+            ) : null}
+            <IconButton onClick={(e) => setMenuAnchor(e.currentTarget)} aria-label="More actions" disabled={busy}>
+              <MoreVertIcon />
+            </IconButton>
+          </>
+        }
+      />
+
+      <Menu anchorEl={menuAnchor} open={menuAnchor !== null} onClose={() => setMenuAnchor(null)}>
+        <MenuItem
+          disabled={rows.length === 0}
+          onClick={() => {
+            setMenuAnchor(null)
+            exportCsv()
+          }}
+        >
+          <ListItemIcon>
+            <DownloadIcon fontSize="small" />
+          </ListItemIcon>
+          Export CSV
+        </MenuItem>
+        <Tooltip title="Rescore every result against the current answer key. Key changes already do this automatically." placement="left">
+          <span>
+            <MenuItem
+              disabled={rows.length === 0}
+              onClick={() => {
+                setMenuAnchor(null)
+                regrade()
+              }}
+            >
+              <ListItemIcon>
+                <RefreshIcon fontSize="small" />
+              </ListItemIcon>
+              Regrade
+            </MenuItem>
           </span>
         </Tooltip>
-        <Button variant="outlined" startIcon={<EditIcon />} onClick={() => openTest(test.id)}>
-          Open test
-        </Button>
-        {missing.length > 0 ? (
-          <Button variant="contained" startIcon={<PrintIcon />} onClick={() => setPrintOpen(true)}>
-            Make-up sheets ({missing.length})
-          </Button>
-        ) : null}
-      </Stack>
+      </Menu>
 
       <Stack direction="row" spacing={2} sx={{ mb: 3 }} flexWrap="wrap" useFlexGap>
         <Stat label="Average" value={view.averagePercent === null ? '–' : formatPercent(view.averagePercent)} />
@@ -247,9 +273,7 @@ export function TestResultsPage(): JSX.Element {
                         )
                       })}
                       <TableCell>
-                        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-                          {row.result.flags.map((f) => <Chip key={`${f.q}-${f.kind}`} size="small" color="warning" variant="outlined" label={flagLabel(f)} />)}
-                        </Stack>
+                        <FlagChips flags={row.result.flags} />
                       </TableCell>
                       <TableCell align="center">{row.result.reviewed ? <CheckCircleIcon fontSize="small" color="success" /> : null}</TableCell>
                     </ClickableRow>

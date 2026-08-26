@@ -4,6 +4,7 @@ import {
   AppBar,
   Badge,
   Box,
+  Container,
   Drawer,
   FormControl,
   List,
@@ -169,7 +170,10 @@ export function AppShell({ children }: { children: ReactNode }): JSX.Element {
 
       <Box component="main" sx={{ flexGrow: 1, minWidth: 0, bgcolor: 'background.default' }}>
         <Toolbar variant="dense" />
-        <Box sx={{ p: 3 }}>{children}</Box>
+        {/* Tables of four short columns should not stretch across a 27-inch display. */}
+        <Container maxWidth="lg" disableGutters sx={{ p: 3 }}>
+          {children}
+        </Container>
       </Box>
     </Box>
   )

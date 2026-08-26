@@ -1,7 +1,6 @@
 import type { JSX } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, Box, Button, Chip, IconButton, Skeleton, Stack, TextField, Tooltip, Typography } from '@mui/material'
-import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import { Alert, Box, Button, Chip, Skeleton, Stack, TextField, Tooltip, Typography } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import LockIcon from '@mui/icons-material/Lock'
@@ -15,6 +14,7 @@ import { useUiStore } from '@/stores/ui.store'
 import { useTestsStore } from '@/stores/tests.store'
 import { describeError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { PageHeader } from '@/components/common/PageHeader'
 import { FitMeter } from '@/components/editor/FitMeter'
 import { AiQuestionsDialog } from '@/components/editor/AiQuestionsDialog'
 import { QuestionCard, type EditorQuestion } from '@/components/editor/QuestionCard'
@@ -204,55 +204,61 @@ export function TestEditorPage(): JSX.Element {
 
   return (
     <>
-      <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
-        <IconButton onClick={closeEditor} aria-label="Back to tests" edge="start">
-          <ArrowBackIcon />
-        </IconButton>
-        <Box sx={{ flexGrow: 1, minWidth: 240 }}>
+      <PageHeader
+        onBack={closeEditor}
+        backLabel="Back to tests"
+        titleSlot={
           <TextField
             variant="standard"
             value={state.title}
             onChange={(e) => edit({ ...state, title: e.target.value.replace(/[\r\n]+/g, ' ').slice(0, MAX_TITLE_CHARS) })}
             placeholder="Test title"
-            fullWidth
+            sx={{ flexGrow: 1, minWidth: 240 }}
             slotProps={{ input: { readOnly, sx: { fontSize: 22, fontWeight: 600 } } }}
             inputProps={{ 'aria-label': 'Test title' }}
           />
-          <Typography variant="caption" color="text.secondary" aria-live="polite">
-            {test.sectionName} · Code {test.code} ·{' '}
-            {readOnly ? `Finalized, layout v${test.layoutVersion}` : saveLabel}
-          </Typography>
-        </Box>
-        <FitMeter measure={measure} />
-        {readOnly ? (
-          <Chip icon={<LockIcon />} label="Finalized" color="success" variant="outlined" />
-        ) : null}
-        {readOnly ? (
-          <Button variant="outlined" startIcon={<LockOpenIcon />} onClick={() => setUnlockOpen(true)} disabled={busy}>
-            Unlock
-          </Button>
-        ) : (
-          <Tooltip title={measure.fits ? 'Lock the layout so sheets can be printed' : 'Fix the fit problems first'}>
-            <span>
-              <Button variant="contained" startIcon={<LockIcon />} onClick={() => void doFinalize()} disabled={!canFinalize}>
-                Finalize
-              </Button>
-            </span>
-          </Tooltip>
-        )}
-        {readOnly ? (
-          <Button variant="outlined" startIcon={<AssessmentIcon />} onClick={() => openTestResults(test.id)}>
-            Results{test.resultCount > 0 ? ` (${test.resultCount})` : ''}
-          </Button>
-        ) : null}
-        <Tooltip title={readOnly ? 'Save or print answer sheets' : 'Finalize the test to print sheets'}>
-          <span>
-            <Button variant="outlined" startIcon={<PrintIcon />} disabled={!readOnly || busy} onClick={() => setPrintOpen(true)}>
-              Print
-            </Button>
+        }
+        chips={readOnly ? <Chip size="small" icon={<LockIcon />} label="Finalized" color="success" variant="outlined" /> : null}
+        subtitle={
+          <span aria-live="polite">
+            {test.sectionName} · Code {test.code} · {readOnly ? `Finalized, layout v${test.layoutVersion}` : saveLabel}
           </span>
-        </Tooltip>
-      </Stack>
+        }
+        actions={
+          readOnly ? (
+            // Locked: printing sheets is the next step, so it is the one primary button.
+            <>
+              <Button variant="outlined" startIcon={<LockOpenIcon />} onClick={() => setUnlockOpen(true)} disabled={busy}>
+                Unlock
+              </Button>
+              <Button variant="outlined" startIcon={<AssessmentIcon />} onClick={() => openTestResults(test.id)}>
+                Results{test.resultCount > 0 ? ` (${test.resultCount})` : ''}
+              </Button>
+              <Button variant="contained" startIcon={<PrintIcon />} disabled={busy} onClick={() => setPrintOpen(true)}>
+                Print
+              </Button>
+            </>
+          ) : (
+            <>
+              <FitMeter measure={measure} />
+              <Tooltip title={measure.fits ? 'Lock the layout so sheets can be printed' : 'Fix the fit problems first'}>
+                <span>
+                  <Button variant="contained" startIcon={<LockIcon />} onClick={() => void doFinalize()} disabled={!canFinalize}>
+                    Finalize
+                  </Button>
+                </span>
+              </Tooltip>
+              <Tooltip title="Finalize the test to print sheets">
+                <span>
+                  <Button variant="outlined" startIcon={<PrintIcon />} disabled>
+                    Print
+                  </Button>
+                </span>
+              </Tooltip>
+            </>
+          )
+        }
+      />
 
       {readOnly ? (
         <Alert severity="info" sx={{ mb: 2 }}>
@@ -267,7 +273,8 @@ export function TestEditorPage(): JSX.Element {
         </Alert>
       ) : null}
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 7fr) minmax(0, 5fr)' }, gap: 3, alignItems: 'start' }}>
+      {/* The preview is live feedback while typing, so it stays beside the questions from the md breakpoint (the app's 1024 minimum) up. */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 340px', lg: 'minmax(0, 7fr) minmax(0, 5fr)' }, gap: 3, alignItems: 'start' }}>
         <Stack spacing={2}>
           <TextField
             label="Instructions"
@@ -327,7 +334,7 @@ export function TestEditorPage(): JSX.Element {
           )}
         </Stack>
 
-        <Box sx={{ position: { lg: 'sticky' }, top: { lg: 64 } }}>
+        <Box sx={{ position: { md: 'sticky' }, top: { md: 64 } }}>
           <SheetPreview
             title={state.title}
             sectionName={test.sectionName}

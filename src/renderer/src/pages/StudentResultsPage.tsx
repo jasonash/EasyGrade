@@ -1,16 +1,17 @@
 import type { JSX } from 'react'
 import { useCallback, useEffect, useState } from 'react'
-import { Box, Chip, IconButton, Paper, Skeleton, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material'
-import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import { Box, Chip, Paper, Skeleton, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import type { StudentResults } from '@shared/types'
 import { useUiStore } from '@/stores/ui.store'
 import { gradingApi } from '@/lib/grading-api'
 import { describeError } from '@/lib/errors'
 import { formatShortDate } from '@/lib/format'
-import { flagLabel, formatPercent, percentOf } from '@/lib/grading'
+import { formatPercent, percentOf } from '@/lib/grading'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ClickableRow } from '@/components/common/ClickableRow'
+import { PageHeader } from '@/components/common/PageHeader'
+import { FlagChips } from '@/components/grading/FlagChips'
 import { PageReviewDrawer } from '@/components/grading/PageReviewDrawer'
 
 /** Every graded test for one student, reached from the roster. */
@@ -48,22 +49,14 @@ export function StudentResultsPage(): JSX.Element {
 
   return (
     <>
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 3 }}>
-        <IconButton onClick={closeResults} aria-label="Back" edge="start">
-          <ArrowBackIcon />
-        </IconButton>
-        <Box sx={{ flexGrow: 1 }}>
-          <Typography variant="h5" sx={{ fontWeight: 600 }}>
-            {student.lastName}, {student.firstName}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {student.studentNumber ? `#${student.studentNumber} · ` : ''}
-            {rows.length} graded test{rows.length === 1 ? '' : 's'}
-            {average !== null ? ` · average ${formatPercent(average)}` : ''}
-          </Typography>
-        </Box>
-        {!student.active ? <Chip size="small" label="Inactive" /> : null}
-      </Stack>
+      <PageHeader
+        title={`${student.lastName}, ${student.firstName}`}
+        subtitle={`${student.studentNumber ? `#${student.studentNumber} · ` : ''}${rows.length} graded test${rows.length === 1 ? '' : 's'}${
+          average !== null ? ` · average ${formatPercent(average)}` : ''
+        }`}
+        chips={!student.active ? <Chip size="small" label="Inactive" /> : null}
+        onBack={closeResults}
+      />
 
       {rows.length === 0 ? (
         <EmptyState title="No results yet" description="Graded answer sheets for this student will be listed here." />
@@ -110,10 +103,10 @@ export function StudentResultsPage(): JSX.Element {
                   <TableCell align="right">{formatPercent(percentOf(row.result.correctCount, row.result.possibleCount))}</TableCell>
                   <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatShortDate(row.result.gradedAt)}</TableCell>
                   <TableCell>
-                    <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-                      {row.result.flags.map((f) => <Chip key={`${f.q}-${f.kind}`} size="small" color="warning" variant="outlined" label={flagLabel(f)} />)}
-                      {row.result.overrides.length > 0 ? <Chip size="small" color="info" variant="outlined" label={`${row.result.overrides.length} edited`} /> : null}
-                    </Stack>
+                    <FlagChips
+                      flags={row.result.flags}
+                      extra={row.result.overrides.length > 0 ? <Chip size="small" color="info" variant="outlined" label={`${row.result.overrides.length} edited`} /> : null}
+                    />
                   </TableCell>
                   <TableCell align="center">{row.result.reviewed ? <CheckCircleIcon fontSize="small" color="success" /> : null}</TableCell>
                 </ClickableRow>

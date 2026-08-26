@@ -126,9 +126,13 @@ export function SectionsPage(): JSX.Element {
             <TableHead>
               <TableRow>
                 <TableCell>Name</TableCell>
-                <TableCell>School year</TableCell>
-                <TableCell align="right">Students</TableCell>
-                <TableCell align="right">Tests</TableCell>
+                <TableCell width={160}>School year</TableCell>
+                <TableCell align="right" width={110}>
+                  Students
+                </TableCell>
+                <TableCell align="right" width={110}>
+                  Tests
+                </TableCell>
                 <TableCell width={56} />
               </TableRow>
             </TableHead>

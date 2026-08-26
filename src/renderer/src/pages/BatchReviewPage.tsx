@@ -1,7 +1,6 @@
 import type { JSX } from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Alert, Box, Button, Chip, IconButton, Paper, Skeleton, Stack, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, Tooltip, Typography } from '@mui/material'
-import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import { Alert, Box, Button, Chip, Paper, Skeleton, Stack, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, Tooltip, Typography } from '@mui/material'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import AssessmentIcon from '@mui/icons-material/Assessment'
 import type { PageBucket, ScanBatch, ScanPageDetail } from '@shared/types'
@@ -11,10 +10,12 @@ import { useScanStore } from '@/stores/scan.store'
 import { useUiStore } from '@/stores/ui.store'
 import { describeError } from '@/lib/errors'
 import { formatShortDate } from '@/lib/format'
-import { BUCKETS, describePage, flagLabel, formatPercent, percentOf } from '@/lib/grading'
+import { BUCKETS, describePage, formatPercent, percentOf } from '@/lib/grading'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ClickableRow } from '@/components/common/ClickableRow'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { PageHeader } from '@/components/common/PageHeader'
+import { FlagChips } from '@/components/grading/FlagChips'
 import { PageReviewDrawer } from '@/components/grading/PageReviewDrawer'
 
 const ATTENTION: PageBucket[] = ['needs_assignment', 'unreadable']
@@ -114,20 +115,16 @@ export function BatchReviewPage(): JSX.Element {
 
   return (
     <>
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-        <IconButton onClick={closeBatch} aria-label="Back to grading" edge="start">
-          <ArrowBackIcon />
-        </IconButton>
-        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-          <Typography variant="h5" sx={{ fontWeight: 600 }} noWrap title={batch?.sourceDescription}>
-            {batch && batch.tests.length > 0 ? batch.tests.map((t) => t.title).join(', ') : (batch?.sourceDescription ?? 'Batch')}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" noWrap>
-            {batch ? `Imported ${formatShortDate(batch.importedAt)} · ${batch.pageCount} page${batch.pageCount === 1 ? '' : 's'}` : ''}
-            {batch && batch.tests.length > 0 ? ` · ${batch.sourceDescription}` : ''}
-          </Typography>
-        </Box>
-      </Stack>
+      <PageHeader
+        title={batch && batch.tests.length > 0 ? batch.tests.map((t) => t.title).join(', ') : (batch?.sourceDescription ?? 'Batch')}
+        subtitle={
+          batch
+            ? `Imported ${formatShortDate(batch.importedAt)} · ${batch.pageCount} page${batch.pageCount === 1 ? '' : 's'}${batch.tests.length > 0 ? ` · ${batch.sourceDescription}` : ''}`
+            : undefined
+        }
+        onBack={closeBatch}
+        backLabel="Back to grading"
+      />
 
       {batch && batch.errors.length > 0 ? (
         <Alert severity="warning" sx={{ mb: 2 }}>
@@ -273,11 +270,15 @@ function PageRowView({ page, graded, onOpen }: { page: ScanPageDetail; graded: b
       ) : null}
       <TableCell>
         {graded ? (
-          <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-            {result?.flags.map((f) => <Chip key={`${f.q}-${f.kind}`} size="small" color="warning" variant="outlined" label={flagLabel(f)} />)}
-            {result && result.overrides.length > 0 ? <Chip size="small" color="info" variant="outlined" label={`${result.overrides.length} edited`} /> : null}
-            {page.alignmentQuality === 'weak' ? <Chip size="small" variant="outlined" label="weak alignment" /> : null}
-          </Stack>
+          <FlagChips
+            flags={result?.flags ?? []}
+            extra={
+              <>
+                {result && result.overrides.length > 0 ? <Chip size="small" color="info" variant="outlined" label={`${result.overrides.length} edited`} /> : null}
+                {page.alignmentQuality === 'weak' ? <Chip size="small" variant="outlined" label="weak alignment" /> : null}
+              </>
+            }
+          />
         ) : (
           <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 520 }}>
             {describePage(page)}

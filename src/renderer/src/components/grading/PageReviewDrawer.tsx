@@ -1,6 +1,6 @@
 import type { JSX, KeyboardEvent } from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Box, Button, Chip, Divider, Drawer, IconButton, Skeleton, Stack, Tooltip, Typography } from '@mui/material'
+import { Box, Button, Chip, Drawer, IconButton, Skeleton, Stack, Tooltip, Typography } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
@@ -307,23 +307,29 @@ export function PageReviewDrawer({ pageId, pageIds, onNavigate, onClose, onChang
               {reviewMode && result && test ? (
                 <>
                   <AnswerRows questions={test.questions} result={result} page={page} busyQ={busyQ} onOverride={onOverride} />
-                  <Divider sx={{ my: 2 }} />
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  {/* Same order as the assign footer (destructive text, secondary, primary) and pinned so a long sheet never scrolls it away. */}
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    justifyContent="flex-end"
+                    flexWrap="wrap"
+                    useFlexGap
+                    sx={{ position: 'sticky', bottom: 0, mt: 2, py: 1.5, bgcolor: 'background.paper', borderTop: 1, borderColor: 'divider' }}
+                  >
+                    <Button color="error" startIcon={<DeleteOutlineIcon />} onClick={() => setDiscardOpen(true)} disabled={busy}>
+                      Discard
+                    </Button>
+                    <Button variant="outlined" startIcon={<SwapHorizIcon />} onClick={() => setReassign(true)} disabled={busy}>
+                      Reassign
+                    </Button>
                     <Button
-                      variant={result.reviewed ? 'contained' : 'outlined'}
-                      color="success"
+                      variant={result.reviewed ? 'outlined' : 'contained'}
+                      color={result.reviewed ? 'success' : 'primary'}
                       startIcon={result.reviewed ? <CheckCircleIcon /> : <CheckCircleOutlineIcon />}
                       onClick={toggleReviewed}
                       disabled={busy}
                     >
                       {result.reviewed ? 'Reviewed' : canStep && nextId !== null ? 'Mark reviewed, next' : 'Mark reviewed'}
-                    </Button>
-                    <Button variant="outlined" startIcon={<SwapHorizIcon />} onClick={() => setReassign(true)} disabled={busy}>
-                      Reassign
-                    </Button>
-                    <Box sx={{ flexGrow: 1 }} />
-                    <Button color="error" startIcon={<DeleteOutlineIcon />} onClick={() => setDiscardOpen(true)} disabled={busy}>
-                      Discard
                     </Button>
                   </Stack>
                 </>

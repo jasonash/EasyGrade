@@ -1,6 +1,6 @@
 import type { JSX } from 'react'
 import { useEffect, useState } from 'react'
-import { Button, Skeleton, Stack } from '@mui/material'
+import { Button, Skeleton } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import type { TestSummary } from '@shared/types'
 import { useTestsStore } from '@/stores/tests.store'
@@ -18,16 +18,31 @@ interface Props {
   sectionId?: number
   /** Extra filter for the global list (school year). */
   filter?: (test: TestSummary) => boolean
+  /**
+   * The New Test dialog is opened from the page header, so the page owns its
+   * open state and renders `NewTestButton` there; the list only asks to open
+   * it from its empty state.
+   */
+  newTest: { open: boolean; onOpen: () => void; onClose: () => void }
 }
 
-export function TestsList({ sectionId, filter }: Props): JSX.Element {
+/** The page-level "New Test" button; disabled until a section exists to put the test in. */
+export function NewTestButton({ onClick }: { onClick: () => void }): JSX.Element {
+  const hasSections = useSectionsStore((s) => s.sections.length > 0)
+  return (
+    <Button variant="contained" startIcon={<AddIcon />} onClick={onClick} disabled={!hasSections}>
+      New Test
+    </Button>
+  )
+}
+
+export function TestsList({ sectionId, filter, newTest }: Props): JSX.Element {
   const { tests, loading, load, create, copy, remove } = useTestsStore()
   const sections = useSectionsStore((s) => s.sections)
   const toast = useUiStore((s) => s.toast)
   const openTest = useUiStore((s) => s.openTest)
   const openTestResults = useUiStore((s) => s.openTestResults)
 
-  const [newOpen, setNewOpen] = useState(false)
   const [copyTarget, setCopyTarget] = useState<TestSummary | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<TestSummary | null>(null)
   const [printTarget, setPrintTarget] = useState<TestSummary | null>(null)
@@ -42,7 +57,7 @@ export function TestsList({ sectionId, filter }: Props): JSX.Element {
   const createTest = async (values: { sectionId: number; title: string }): Promise<void> => {
     try {
       const test = await create(values)
-      setNewOpen(false)
+      newTest.onClose()
       openTest(test.id)
     } catch (err) {
       toast('error', describeError(err))
@@ -76,18 +91,8 @@ export function TestsList({ sectionId, filter }: Props): JSX.Element {
     }
   }
 
-  const newButton = (
-    <Button variant="contained" startIcon={<AddIcon />} onClick={() => setNewOpen(true)} disabled={sections.length === 0}>
-      New Test
-    </Button>
-  )
-
   return (
     <>
-      <Stack direction="row" justifyContent="flex-end" sx={{ mb: 2 }}>
-        {newButton}
-      </Stack>
-
       {loading && tests.length === 0 ? (
         <Skeleton variant="rounded" height={160} />
       ) : visible.length === 0 ? (
@@ -98,7 +103,7 @@ export function TestsList({ sectionId, filter }: Props): JSX.Element {
               ? 'Create a section first, then add a test to it.'
               : 'Create a test, add up to ten questions, and finalize it when the fit meter is green.'
           }
-          action={sections.length > 0 ? newButton : undefined}
+          action={sections.length > 0 ? <NewTestButton onClick={newTest.onOpen} /> : undefined}
         />
       ) : (
         <TestsTable
@@ -113,12 +118,12 @@ export function TestsList({ sectionId, filter }: Props): JSX.Element {
       )}
 
       <TestFormDialog
-        open={newOpen}
+        open={newTest.open}
         mode="create"
         sections={sections}
         sectionId={sectionId ?? null}
         lockSection={sectionId !== undefined}
-        onClose={() => setNewOpen(false)}
+        onClose={newTest.onClose}
         onSubmit={createTest}
       />
 
