@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """Generate every icon asset from docs/app_icon/icon.png.
 
+The icon itself is a vector, build/icon-source.svg: a 1024 canvas, full-bleed rounded square with
+230 px corners, on the app's blue. `python3 scripts/make-icons.py --from-svg` re-renders the SVG to
+docs/app_icon/icon.png first (macOS qlmanage, which paints an opaque white canvas, so the rounded
+corners are cut back out with an alpha mask) and then regenerates everything below.
+
 Outputs (all committed):
   build/icon.png            1024x1024 full-bleed, used by electron-builder for Windows (ico is generated)
   build/icon.icns           macOS icon set; the art sits in an 824 px box on a 1024 canvas per Apple's template
@@ -8,14 +13,15 @@ Outputs (all committed):
   resources/icon.png        512x512 full-bleed, shipped as an extra resource for runtime use (splash screen)
   build/dmg-background.png  540x380 DMG window background, plus @2x at 1080x760
 
-Run from the project root: python3 scripts/make-icons.py
-Requires Pillow (pip install pillow) and macOS iconutil for the .icns.
+Run from the project root: python3 scripts/make-icons.py [--from-svg]
+Requires Pillow (pip install pillow) and macOS iconutil for the .icns (qlmanage for --from-svg).
 """
 
 from __future__ import annotations
 
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -23,6 +29,9 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "docs" / "app_icon" / "icon.png"
+SVG_SOURCE = ROOT / "build" / "icon-source.svg"
+SVG_CANVAS = 1024
+SVG_CORNER = 230  # must match the rx of the background rect in icon-source.svg
 BUILD = ROOT / "build"
 RESOURCES = ROOT / "resources"
 
@@ -45,8 +54,33 @@ ICONSET = [
 
 BACKGROUND = (20, 23, 28)  # DARK_BACKGROUND in src/main/index.ts
 BACKGROUND_END = (30, 35, 48)
-ACCENT = (139, 148, 232)  # the icon's periwinkle
+ACCENT = (61, 111, 216)  # the icon's blue (#3d6fd8, light theme primary)
 TEXT = (238, 240, 245)
+
+
+def render_svg_source() -> None:
+    """Rasterize build/icon-source.svg to docs/app_icon/icon.png with transparent rounded corners."""
+    if shutil.which("qlmanage") is None:
+        raise SystemExit("qlmanage not found; --from-svg needs macOS")
+    with tempfile.TemporaryDirectory() as tmp:
+        subprocess.run(
+            ["qlmanage", "-t", "-s", str(SVG_CANVAS), "-o", tmp, str(SVG_SOURCE)],
+            check=True,
+            capture_output=True,
+        )
+        rendered = Path(tmp) / (SVG_SOURCE.name + ".png")
+        img = Image.open(rendered).convert("RGBA")
+    if img.size != (SVG_CANVAS, SVG_CANVAS):
+        raise SystemExit(f"unexpected render size {img.size}")
+    ss = 4
+    mask = Image.new("L", (SVG_CANVAS * ss, SVG_CANVAS * ss), 0)
+    ImageDraw.Draw(mask).rounded_rectangle(
+        (0, 0, SVG_CANVAS * ss - 1, SVG_CANVAS * ss - 1), radius=SVG_CORNER * ss, fill=255
+    )
+    img.putalpha(mask.resize((SVG_CANVAS, SVG_CANVAS), Image.LANCZOS))
+    SOURCE.parent.mkdir(parents=True, exist_ok=True)
+    img.save(SOURCE)
+    print("rendered", SVG_SOURCE.relative_to(ROOT), "->", SOURCE.relative_to(ROOT))
 
 
 def load_square_source() -> Image.Image:
@@ -120,6 +154,8 @@ def dmg_background(square: Image.Image, scale: int) -> Image.Image:
 
 
 def main() -> None:
+    if "--from-svg" in sys.argv[1:]:
+        render_svg_source()
     BUILD.mkdir(exist_ok=True)
     (BUILD / "icons").mkdir(exist_ok=True)
     RESOURCES.mkdir(exist_ok=True)
