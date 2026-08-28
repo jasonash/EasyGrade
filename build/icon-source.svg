@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#8fb3ff"/>
+    <stop offset="1" stop-color="#3d6fd8"/>
+  </linearGradient>
+  <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+    <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#0d1b3f" flood-opacity="0.35"/>
+  </filter>
+  <filter id="sh2" x="-20%" y="-20%" width="140%" height="140%">
+    <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#0d1b3f" flood-opacity="0.30"/>
+  </filter>
+</defs>
+<rect x="0" y="0" width="1024" height="1024" rx="230" ry="230" fill="url(#bg)"/>
+<g filter="url(#sh)">
+  <rect x="212" y="156" width="600" height="712" rx="44" fill="#ffffff"/>
+</g>
+<!-- header bar -->
+<rect x="268" y="222" width="300" height="34" rx="17" fill="#3d6fd8" opacity="0.28"/>
+<rect x="268" y="278" width="200" height="22" rx="11" fill="#3d6fd8" opacity="0.16"/>
+<!-- bubble rows: 5 rows x 4 bubbles -->
+<g stroke="#3d6fd8" stroke-width="10" fill="none">
+  <g id="rowA"><circle cx="304" cy="392" r="30"/><circle cx="416" cy="392" r="30"/><circle cx="528" cy="392" r="30"/><circle cx="640" cy="392" r="30"/></g>
+  <g transform="translate(0,100)"><circle cx="304" cy="392" r="30"/><circle cx="416" cy="392" r="30"/><circle cx="528" cy="392" r="30"/><circle cx="640" cy="392" r="30"/></g>
+  <g transform="translate(0,200)"><circle cx="304" cy="392" r="30"/><circle cx="416" cy="392" r="30"/><circle cx="528" cy="392" r="30"/><circle cx="640" cy="392" r="30"/></g>
+  <g transform="translate(0,300)"><circle cx="304" cy="392" r="30"/><circle cx="416" cy="392" r="30"/><circle cx="528" cy="392" r="30"/><circle cx="640" cy="392" r="30"/></g>
+</g>
+<!-- filled answers -->
+<g fill="#1f2430">
+  <circle cx="416" cy="392" r="30"/>
+  <circle cx="304" cy="492" r="30"/>
+  <circle cx="640" cy="592" r="30"/>
+  <circle cx="528" cy="692" r="30"/>
+</g>
+<!-- green check badge -->
+<g filter="url(#sh2)">
+  <circle cx="748" cy="776" r="150" fill="#9ece6a"/>
+</g>
+<path d="M672 782 L728 838 L836 712" fill="none" stroke="#ffffff" stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
