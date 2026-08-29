@@ -255,8 +255,8 @@ export function TestResultsPage(): JSX.Element {
                     {questions.map((q) => (
                       <TableCell key={q.position} align="center" sx={{ px: 0.5, lineHeight: 1.2 }}>
                         Q{q.position + 1}
-                        <Typography component="span" variant="caption" color="text.secondary" sx={{ display: 'block' }} aria-label={`Key ${choiceLetter(q.correctChoice)}`}>
-                          {choiceLetter(q.correctChoice)}
+                        <Typography component="span" variant="caption" color="text.secondary" sx={{ display: 'block' }} aria-label={`Key ${choiceLetter(q.correctChoice, q.labelStyle)}`}>
+                          {choiceLetter(q.correctChoice, q.labelStyle)}
                         </Typography>
                       </TableCell>
                     ))}
@@ -287,10 +287,10 @@ export function TestResultsPage(): JSX.Element {
                         const correct = answer !== null && answer === q.correctChoice
                         const edited = row.result.overrides.some((o) => o.q === q.position)
                         // Wrong answers show the letter the student chose so the pattern reads without hovering.
-                        const mark = answer === null ? '–' : correct ? '✓' : `✗ ${choiceLetter(answer)}`
+                        const mark = answer === null ? '–' : correct ? '✓' : `✗ ${choiceLetter(answer, q.labelStyle)}`
                         return (
                           <TableCell key={q.position} align="center" sx={{ px: 0.5, whiteSpace: 'nowrap' }}>
-                            <Tooltip title={`${answer === null ? 'Blank' : `Answered ${choiceLetter(answer)}`}${edited ? ' (edited)' : ''}`}>
+                            <Tooltip title={`${answer === null ? 'Blank' : `Answered ${choiceLetter(answer, q.labelStyle)}`}${edited ? ' (edited)' : ''}`}>
                               <Typography
                                 component="span"
                                 variant="body2"

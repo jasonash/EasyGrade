@@ -19,7 +19,7 @@ import {
   Typography
 } from '@mui/material'
 import type { GradeResult, ScanBatch, ScanPageDetail, Student, Test } from '@shared/types'
-import { CHOICE_LETTERS } from '@shared/layout'
+import { choiceLabel } from '@shared/layout'
 import { scanImageUrl } from '@shared/scan-url'
 import { api, unwrap } from '@/api'
 import { useTestsStore } from '@/stores/tests.store'
@@ -382,7 +382,7 @@ export function AssignPanel({ page, reassign = false, onAssigned, onDiscarded, o
                   >
                     {question.choices.map((_, c) => (
                       <ToggleButton key={c} value={String(c)} sx={{ px: 1.25, py: 0.5, minWidth: 36 }}>
-                        {CHOICE_LETTERS[c]}
+                        {choiceLabel(c, question.labelStyle)}
                       </ToggleButton>
                     ))}
                     <ToggleButton value={BLANK} sx={{ px: 1.25, py: 0.5 }}>
@@ -396,7 +396,7 @@ export function AssignPanel({ page, reassign = false, onAssigned, onDiscarded, o
             <Typography variant="body2" color="text.secondary">
               Read from the sheet: {detectedSummary.filled} of {detectedSummary.total} bubbles filled
               {detectedSummary.flagged.length > 0 ? ` (${detectedSummary.flagged.join(', ')})` : ''}. Answers:{' '}
-              {answers.map((a) => choiceLetter(a)).join(' ')}
+              {answers.map((a, q) => choiceLetter(a, test?.questions[q]?.labelStyle)).join(' ')}
             </Typography>
           ) : (
             <Typography variant="body2" color="text.secondary">

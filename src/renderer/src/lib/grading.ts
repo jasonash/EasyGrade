@@ -1,11 +1,11 @@
-import type { PageBucket, QuestionFlag, ScanPageDetail } from '@shared/types'
-import { CHOICE_LETTERS } from '@shared/layout'
+import type { LabelStyle, PageBucket, QuestionFlag, ScanPageDetail } from '@shared/types'
+import { choiceLabel } from '@shared/layout'
 import { parseQrPayload } from '@shared/codes'
 
-/** Letter for a zero-based choice; a dash for blank. */
-export function choiceLetter(choice: number | null | undefined): string {
+/** Label for a zero-based choice (A..H, or T/F on a true/false row); a dash for blank. */
+export function choiceLetter(choice: number | null | undefined, labelStyle: LabelStyle = 'letters'): string {
   if (choice === null || choice === undefined) return '–'
-  return CHOICE_LETTERS[choice] ?? String(choice + 1)
+  return choiceLabel(choice, labelStyle)
 }
 
 export function percentOf(correct: number, possible: number): number | null {

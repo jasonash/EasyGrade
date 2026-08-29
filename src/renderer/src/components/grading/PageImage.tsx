@@ -4,7 +4,7 @@ import { Box, Dialog, DialogContent, IconButton, Tooltip, useTheme } from '@mui/
 import CloseIcon from '@mui/icons-material/Close'
 import type { ScanPageDetail } from '@shared/types'
 import type { SheetLayout } from '@shared/layout'
-import { PAGE_HEIGHT, PAGE_WIDTH } from '@shared/layout'
+import { PAGE_HEIGHT, PAGE_WIDTH, bubbleCenter } from '@shared/layout'
 import { scanImageUrl } from '@shared/scan-url'
 import { canReadBubbles } from '@/lib/grading'
 
@@ -88,14 +88,16 @@ function Overlay({
   const r = layout.bubbleRadius
   const marks: JSX.Element[] = []
   for (let q = 0; q < layout.questionCount; q++) {
-    const cy = layout.rowY[q]
     const count = layout.choiceCounts[q] ?? 0
-    if (cy === undefined || count === 0) continue
+    const first = bubbleCenter(layout, q, 0)
+    const last = bubbleCenter(layout, q, count - 1)
+    if (!first || !last) continue
+    const cy = first[1]
     const final = answers?.[q] ?? null
     const key = answerKey?.[q] ?? null
     if (flagged?.has(q)) {
-      const x0 = layout.bubbleX[0] ?? 0
-      const x1 = layout.bubbleX[count - 1] ?? x0
+      const x0 = first[0]
+      const x1 = last[0]
       marks.push(
         <rect
           key={`flag-${q}`}
@@ -112,7 +114,7 @@ function Overlay({
       )
     }
     if (final !== null) {
-      const cx = layout.bubbleX[final]
+      const cx = bubbleCenter(layout, q, final)?.[0]
       if (cx !== undefined) {
         const correct = key !== null && final === key
         marks.push(
@@ -121,7 +123,7 @@ function Overlay({
       }
     }
     if (key !== null && final !== key) {
-      const cx = layout.bubbleX[key]
+      const cx = bubbleCenter(layout, q, key)?.[0]
       if (cx !== undefined) {
         marks.push(
           <circle key={`key-${q}`} cx={cx} cy={cy} r={r + 2.5} fill="none" stroke={theme.palette.success.main} strokeWidth={1.5} strokeDasharray="2.5 2" />

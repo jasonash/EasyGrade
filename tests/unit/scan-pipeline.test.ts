@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { createGray, rotate } from '../../src/main/scan/image'
+import { createGray, rotate, type GrayImage } from '../../src/main/scan/image'
 import { processPage } from '../../src/main/scan/pipeline'
+import { pageReferences, sampleRawFills } from '../../src/main/scan/stages/omr'
 import type { RasterPage } from '../../src/main/scan/stages/rasterize'
 import { CANONICAL_HEIGHT, CANONICAL_WIDTH, T_BLANK } from '../../src/main/scan/thresholds'
 import { CHOICE_LETTERS } from '../../src/shared/layout'
@@ -91,14 +92,19 @@ describe('scan pipeline on synthetic sheets', () => {
     expect(result.flags).toEqual(['low_confidence'])
   })
 
-  it('keeps the letters printed inside the bubbles far below the blank threshold', async () => {
-    const { result } = await processPage({ pageIndex: 0, image: personalized.image }, ctx)
-    const fills = result.answers?.flatMap((r) => r.fills) ?? []
-    expect(fills.length).toBeGreaterThan(0)
+  it('keeps the letters printed inside the bubbles far below the blank threshold, then calibrates them out', async () => {
+    const { result, canonical } = await processPage({ pageIndex: 0, image: personalized.image }, ctx)
+    expect(canonical).not.toBeNull()
+    const raw = sampleRawFills(canonical as GrayImage, layout, pageReferences(canonical as GrayImage)).flat()
+    expect(raw.length).toBeGreaterThan(0)
     // The letters are really there (the disc sees a little ink)...
-    expect(Math.max(...fills)).toBeGreaterThan(0.005)
-    // ...but an empty bubble stays under two thirds of T_BLANK (8 pt at 60% gray measures about 0.08), so a change of font, size, or gray cannot creep up on the reader.
-    expect(Math.max(...fills)).toBeLessThan(T_BLANK * (2 / 3))
+    expect(Math.max(...raw)).toBeGreaterThan(0.005)
+    // ...but an empty bubble stays under two thirds of T_BLANK before calibration (8 pt at 60% gray measures about
+    // 0.08 here and up to 0.17 on paper), so a change of font, size, or gray cannot creep up on the reader.
+    expect(Math.max(...raw)).toBeLessThan(T_BLANK * (2 / 3))
+    // After the per-letter baseline is removed, empty bubbles read as paper.
+    const fills = result.answers?.flatMap((r) => r.fills) ?? []
+    expect(Math.max(...fills)).toBeLessThan(0.03)
   })
 
   it('sends a blank sheet to assignment with name and section crops', async () => {
