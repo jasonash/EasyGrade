@@ -112,6 +112,7 @@ export function StudentResultsPage(): JSX.Element {
       <PageReviewDrawer
         pageId={reviewId}
         pageIds={rows.flatMap((r) => (r.page ? [r.page.id] : []))}
+        toReviewIds={rows.flatMap((r) => (r.page && !r.result.reviewed ? [r.page.id] : []))}
         onNavigate={setReviewId}
         onClose={() => setReviewId(null)}
         onChanged={() => {

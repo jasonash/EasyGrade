@@ -76,6 +76,7 @@ export function BatchReviewPage(): JSX.Element {
 
   const visible = useMemo(() => pages.filter((p) => p.bucket === tab), [pages, tab])
   const visibleIds = useMemo(() => visible.map((p) => p.id), [visible])
+  const toReviewIds = useMemo(() => visible.filter((p) => p.result !== null && !p.result.reviewed).map((p) => p.id), [visible])
   const conflicts = useMemo(() => (tab === 'needs_assignment' ? visible.filter((p) => p.reason === 'conflict') : []), [visible, tab])
   const attention = batch ? batch.counts.needs_assignment + batch.counts.unreadable : 0
   const done = !loading && batch !== null && batch.status !== 'processing' && attention === 0 && batch.counts.graded > 0
@@ -223,7 +224,7 @@ export function BatchReviewPage(): JSX.Element {
         </Paper>
       )}
 
-      <PageReviewDrawer pageId={reviewId} pageIds={visibleIds} onNavigate={setReviewId} onClose={() => setReviewId(null)} onChanged={refresh} />
+      <PageReviewDrawer pageId={reviewId} pageIds={visibleIds} toReviewIds={toReviewIds} onNavigate={setReviewId} onClose={() => setReviewId(null)} onChanged={refresh} />
 
       <ConfirmDialog
         open={bulk !== null}
