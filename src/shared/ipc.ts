@@ -98,6 +98,11 @@ export interface EasyGradeApi {
     unlock: (id: number) => Promise<ApiResult<Test>>
     copy: (input: TestCopyInput) => Promise<ApiResult<Test>>
     remove: (id: number) => Promise<ApiResult<void>>
+    /** Pick a PDF or image and attach it to the test (replacing any earlier one). Null when cancelled. */
+    attachFile: (testId: number) => Promise<ApiResult<Test | null>>
+    removeAttachment: (testId: number) => Promise<ApiResult<Test>>
+    /** Open the attached file in the system viewer. */
+    openAttachment: (testId: number) => Promise<ApiResult<void>>
   }
   print: {
     /** Generate to a temp file and open it in the system PDF viewer. No print run is recorded. */
@@ -209,7 +214,10 @@ export const IPC = {
     finalize: 'tests:finalize',
     unlock: 'tests:unlock',
     copy: 'tests:copy',
-    remove: 'tests:remove'
+    remove: 'tests:remove',
+    attachFile: 'tests:attachFile',
+    removeAttachment: 'tests:removeAttachment',
+    openAttachment: 'tests:openAttachment'
   },
   print: {
     preview: 'print:preview',

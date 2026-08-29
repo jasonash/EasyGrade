@@ -22,6 +22,8 @@ import type { SettingsService } from './settings.service'
 export interface BackupOptions {
   dbPath: string
   scansDir: string
+  /** Test attachments (PDF or image of the test); mirrored like scans. */
+  attachmentsDir: string
   getDb: () => Db | null
   appVersion: string
   machineName: string
@@ -146,6 +148,9 @@ export class BackupService {
     const dbBytes = statSync(snapshotPath).size
 
     const mirror = mirrorDirectory(this.options.scansDir, join(dir, 'scans'), true)
+    const attachments = mirrorDirectory(this.options.attachmentsDir, join(dir, 'attachments'), true)
+    mirror.copied += attachments.copied
+    mirror.removed += attachments.removed
 
     const counts = this.counts(db)
     const manifest = {
@@ -223,7 +228,9 @@ export class BackupService {
     copyFileSync(snapshotPath, dbPath)
 
     const scansMirror = join(dirname(snapshotPath), 'scans')
-    const scanFilesCopied = existsSync(scansMirror) ? mirrorDirectory(scansMirror, this.options.scansDir, false).copied : 0
+    let scanFilesCopied = existsSync(scansMirror) ? mirrorDirectory(scansMirror, this.options.scansDir, false).copied : 0
+    const attachmentsMirror = join(dirname(snapshotPath), 'attachments')
+    if (existsSync(attachmentsMirror)) scanFilesCopied += mirrorDirectory(attachmentsMirror, this.options.attachmentsDir, false).copied
     return { snapshotPath, scanFilesCopied }
   }
 

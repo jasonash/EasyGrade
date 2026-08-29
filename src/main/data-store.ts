@@ -8,6 +8,7 @@ import { AppError } from './services/errors'
 export interface DataStoreOptions {
   dbPath: string
   scansDir: string
+  attachmentsDir: string
   workerPath?: string
   appVersion: string
   machineName: string
@@ -28,12 +29,12 @@ export class DataStore {
   /** Open the database (running migrations) and build the services. */
   open(): Services {
     if (this.services) return this.services
-    const { dbPath, scansDir, workerPath, appVersion, machineName } = this.options
+    const { dbPath, scansDir, attachmentsDir, workerPath, appVersion, machineName } = this.options
     this.db = openDatabase({ path: dbPath })
     this.services = createServices(
       this.db,
       { scansDir, workerPath },
-      { dbPath, scansDir, getDb: () => this.db, appVersion, machineName }
+      { dbPath, scansDir, attachmentsDir, getDb: () => this.db, appVersion, machineName }
     )
     return this.services
   }
@@ -71,12 +72,12 @@ export class DataStore {
 
   /**
    * Start over. The current database is renamed to
-   * `easygrade.db.before-reset-<stamp>` (never deleted), every scan image is
-   * removed, and a fresh database is opened in its place. Settings live in
+   * `easygrade.db.before-reset-<stamp>` (never deleted), every scan image and
+   * attachment is removed, and a fresh database is opened in its place. Settings live in
    * the database, so they reset too.
    */
   reset(now = new Date()): ResetOutcome {
-    const { dbPath, scansDir } = this.options
+    const { dbPath, scansDir, attachmentsDir } = this.options
     this.current
     this.close()
     try {
@@ -87,8 +88,9 @@ export class DataStore {
       }
       rmSync(`${dbPath}-wal`, { force: true })
       rmSync(`${dbPath}-shm`, { force: true })
-      const scanBytesRemoved = dirBytes(scansDir)
+      const scanBytesRemoved = dirBytes(scansDir) + dirBytes(attachmentsDir)
       rmSync(scansDir, { recursive: true, force: true })
+      rmSync(attachmentsDir, { recursive: true, force: true })
       return { keptDatabasePath, scanBytesRemoved }
     } finally {
       this.open()
