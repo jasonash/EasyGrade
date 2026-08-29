@@ -31,8 +31,8 @@ import {
   SLOT_PADDING,
   STEM_CHOICE_GAP,
   STEM_WIDTH,
-  STRIP_HEADER_FONT_SIZE,
-  STRIP_HEADER_Y,
+  BUBBLE_LABEL_FONT_SIZE,
+  BUBBLE_LABEL_GRAY,
   TEXT_COL_X,
   TITLE_BASELINE_Y,
   TITLE_FONT_SIZE,
@@ -157,7 +157,7 @@ function drawSheet(doc: Doc, job: PdfJob, measure: TestMeasure, sheet: SheetSpec
   drawHeader(doc, job, measure, sheet)
   drawQr(doc, formatQrPayload({ testCode: test.code, studentCode: sheet.student?.code ?? null, layoutVersion: test.layoutVersion }))
   drawInstructions(doc, measure)
-  drawStripHeader(doc)
+  drawGridTopRule(doc)
   drawGrid(doc, layout, measure)
 }
 
@@ -239,13 +239,20 @@ function drawInstructions(doc: Doc, measure: TestMeasure): void {
   })
 }
 
-function drawStripHeader(doc: Doc): void {
-  doc.fillColor(INK).font(FONT_BOLD).fontSize(STRIP_HEADER_FONT_SIZE)
-  BUBBLE_X.forEach((x, i) => {
-    const letter = CHOICE_LETTERS[i] ?? ''
-    doc.text(letter, x - doc.widthOfString(letter) / 2, STRIP_HEADER_Y + STRIP_HEADER_FONT_SIZE * ASCENT, NO_WRAP)
-  })
+function drawGridTopRule(doc: Doc): void {
   doc.lineWidth(0.5).moveTo(TEXT_COL_X, GRID_TOP).lineTo(GRID_RIGHT, GRID_TOP).stroke(INK)
+}
+
+/** The choice letter centered inside each bubble (capital centered on the bubble middle). */
+function drawBubbleLetters(doc: Doc, layout: SheetLayout, rowY: number, count: number): void {
+  doc.fillColor(BUBBLE_LABEL_GRAY).font(FONT).fontSize(BUBBLE_LABEL_FONT_SIZE)
+  const baseline = rowY + (BUBBLE_LABEL_FONT_SIZE * ASCENT) / 2
+  for (let c = 0; c < count; c++) {
+    const bx = layout.bubbleX[c] ?? BUBBLE_X[c] ?? 0
+    const letter = CHOICE_LETTERS[c] ?? ''
+    doc.text(letter, bx - doc.widthOfString(letter) / 2, baseline, NO_WRAP)
+  }
+  doc.fillColor(INK)
 }
 
 function drawGrid(doc: Doc, layout: SheetLayout, measure: TestMeasure): void {
@@ -282,6 +289,7 @@ function drawGrid(doc: Doc, layout: SheetLayout, measure: TestMeasure): void {
       const bx = layout.bubbleX[c] ?? BUBBLE_X[c] ?? 0
       doc.circle(bx, rowY, layout.bubbleRadius || BUBBLE_RADIUS).stroke(INK)
     }
+    drawBubbleLetters(doc, layout, rowY, count)
     doc.lineWidth(0.25).moveTo(TEXT_COL_X, bottom).lineTo(GRID_RIGHT, bottom).stroke(RULE)
   })
 }

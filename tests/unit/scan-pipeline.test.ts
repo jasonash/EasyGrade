@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { createGray, rotate } from '../../src/main/scan/image'
 import { processPage } from '../../src/main/scan/pipeline'
 import type { RasterPage } from '../../src/main/scan/stages/rasterize'
-import { CANONICAL_HEIGHT, CANONICAL_WIDTH } from '../../src/main/scan/thresholds'
+import { CANONICAL_HEIGHT, CANONICAL_WIDTH, T_BLANK } from '../../src/main/scan/thresholds'
 import { CHOICE_LETTERS } from '../../src/shared/layout'
 import {
   SYN_CHOICE_COUNTS,
@@ -88,6 +88,16 @@ describe('scan pipeline on synthetic sheets', () => {
     expect(thumbnail.width).toBe(300)
     expect(Object.keys(crops).sort()).toEqual(Array.from({ length: 10 }, (_, i) => `row_${i}`))
     expect(result.flags).toEqual(['low_confidence'])
+  })
+
+  it('keeps the letters printed inside the bubbles far below the blank threshold', async () => {
+    const { result } = await processPage({ pageIndex: 0, image: personalized.image }, ctx)
+    const fills = result.answers?.flatMap((r) => r.fills) ?? []
+    expect(fills.length).toBeGreaterThan(0)
+    // The letters are really there (the disc sees a little ink)...
+    expect(Math.max(...fills)).toBeGreaterThan(0.005)
+    // ...but an empty bubble stays under a third of T_BLANK, so a change of font, size, or gray cannot creep up on the reader.
+    expect(Math.max(...fills)).toBeLessThan(T_BLANK / 3)
   })
 
   it('sends a blank sheet to assignment with name and section crops', async () => {

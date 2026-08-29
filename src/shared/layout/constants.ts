@@ -56,8 +56,14 @@ export const INSTRUCTIONS_WIDTH = 385
 export const INSTRUCTIONS_FONT_SIZE = 8.5
 export const INSTRUCTIONS_MAX_LINES = 2
 export const INSTRUCTIONS_BASELINE_Y = 183
-export const STRIP_HEADER_Y = 188
-export const STRIP_HEADER_FONT_SIZE = 9
+/**
+ * Letter printed inside every bubble. Small and mid gray so a pencil fill
+ * covers it and an empty bubble still reads well under the blank threshold
+ * (measured 2026-08-29: 5 pt at 50% gray adds about 0.03 darkness against
+ * T_BLANK 0.15; even 6 pt solid black stays under 0.06).
+ */
+export const BUBBLE_LABEL_FONT_SIZE = 5
+export const BUBBLE_LABEL_GRAY = '#808080'
 
 /** Question grid. */
 export const GRID_TOP = 200
