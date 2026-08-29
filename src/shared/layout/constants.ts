@@ -56,8 +56,16 @@ export const INSTRUCTIONS_WIDTH = 385
 export const INSTRUCTIONS_FONT_SIZE = 8.5
 export const INSTRUCTIONS_MAX_LINES = 2
 export const INSTRUCTIONS_BASELINE_Y = 183
-export const STRIP_HEADER_Y = 188
-export const STRIP_HEADER_FONT_SIZE = 9
+/**
+ * Letter printed inside every bubble. Large enough to read at arm's length
+ * (Jason's wife found 5 pt too small), gray so a pencil fill covers it, and
+ * an empty bubble still reads about half the blank threshold (measured
+ * 2026-08-29 on synthetic scans: 8 pt at 60% gray adds 0.08 darkness against
+ * T_BLANK 0.15; 5 pt at 50% added 0.03). Darker beats lighter on a copier,
+ * where light gray dithers into dots.
+ */
+export const BUBBLE_LABEL_FONT_SIZE = 8
+export const BUBBLE_LABEL_GRAY = '#666666'
 
 /** Question grid. */
 export const GRID_TOP = 200

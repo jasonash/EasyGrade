@@ -30,8 +30,8 @@ import {
   SLOT_PADDING,
   STEM_CHOICE_GAP,
   STEM_WIDTH,
-  STRIP_HEADER_FONT_SIZE,
-  STRIP_HEADER_Y,
+  BUBBLE_LABEL_FONT_SIZE,
+  BUBBLE_LABEL_GRAY,
   TEXT_COL_X,
   TITLE_BASELINE_Y,
   TITLE_FONT_SIZE,
@@ -119,11 +119,6 @@ export function SheetPreview({ sectionName, code, measure, choiceCounts }: Props
           {line}
         </text>
       ))}
-      {BUBBLE_X.map((x, i) => (
-        <text key={i} x={x} y={STRIP_HEADER_Y + STRIP_HEADER_FONT_SIZE * ASCENT} fontFamily={FONT} fontSize={STRIP_HEADER_FONT_SIZE} fontWeight={700} fill={INK} textAnchor="middle">
-          {CHOICE_LETTERS[i]}
-        </text>
-      ))}
       <line x1={TEXT_COL_X} y1={GRID_TOP} x2={PAGE_WIDTH - TEXT_COL_X + 25} y2={GRID_TOP} stroke={INK} strokeWidth={0.5} />
 
       {/* Question slots */}
@@ -172,8 +167,13 @@ export function SheetPreview({ sectionName, code, measure, choiceCounts }: Props
                 )
               })}
             </g>
-            {BUBBLE_X.slice(0, count).map((x) => (
-              <circle key={x} cx={x} cy={top + BUBBLE_Y_OFFSET} r={BUBBLE_RADIUS} fill="none" stroke={INK} strokeWidth={0.75} />
+            {BUBBLE_X.slice(0, count).map((x, c) => (
+              <g key={x}>
+                <circle cx={x} cy={top + BUBBLE_Y_OFFSET} r={BUBBLE_RADIUS} fill="none" stroke={INK} strokeWidth={0.75} />
+                <text x={x} y={top + BUBBLE_Y_OFFSET + (BUBBLE_LABEL_FONT_SIZE * ASCENT) / 2} fontFamily={FONT} fontSize={BUBBLE_LABEL_FONT_SIZE} fill={BUBBLE_LABEL_GRAY} textAnchor="middle">
+                  {CHOICE_LETTERS[c]}
+                </text>
+              </g>
             ))}
             <line x1={TEXT_COL_X} y1={top + slotHeight} x2={PAGE_WIDTH - TEXT_COL_X + 25} y2={top + slotHeight} stroke={INK} strokeWidth={0.25} opacity={0.6} />
           </g>
