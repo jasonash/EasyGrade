@@ -130,16 +130,30 @@ export function measureQuestion(question: MeasurableQuestion, index: number, que
   }
 }
 
+export interface HeaderMeasure {
+  titleLines: string[]
+  instructionLines: string[]
+  /** Title, instructions, or unsupported-character problems. */
+  problems: string[]
+}
+
+/** The header alone (title and instructions); shared by both sheet kinds. */
+export function measureHeader(title: string, instructions: string): HeaderMeasure {
+  const problems: string[] = []
+  const titleLines = wrapText(title, TITLE_WIDTH - WIDTH_TOLERANCE, TITLE_FONT_SIZE, 'bold')
+  if (titleLines.length > TITLE_MAX_LINES) problems.push('Title is too long to fit the header')
+  const instructionLines = wrapText(instructions, INSTRUCTIONS_WIDTH - WIDTH_TOLERANCE, INSTRUCTIONS_FONT_SIZE)
+  if (instructionLines.length > INSTRUCTIONS_MAX_LINES) problems.push('Instructions are too long to fit above the grid')
+  const badHeader = unsupportedChars(title + instructions)
+  if (badHeader.length > 0) problems.push(`Unsupported characters in the header: ${badHeader.join(' ')}`)
+  return { titleLines, instructionLines, problems }
+}
+
 export function measureTest(test: MeasurableTest): TestMeasure {
   const questionCount = test.questions.length
-  const problems: string[] = []
-
-  const titleLines = wrapText(test.title, TITLE_WIDTH - WIDTH_TOLERANCE, TITLE_FONT_SIZE, 'bold')
-  if (titleLines.length > TITLE_MAX_LINES) problems.push('Title is too long to fit the header')
-  const instructionLines = wrapText(test.instructions, INSTRUCTIONS_WIDTH - WIDTH_TOLERANCE, INSTRUCTIONS_FONT_SIZE)
-  if (instructionLines.length > INSTRUCTIONS_MAX_LINES) problems.push('Instructions are too long to fit above the grid')
-  const badHeader = unsupportedChars(test.title + test.instructions)
-  if (badHeader.length > 0) problems.push(`Unsupported characters in the header: ${badHeader.join(' ')}`)
+  const header = measureHeader(test.title, test.instructions)
+  const { titleLines, instructionLines } = header
+  const problems = [...header.problems]
 
   if (questionCount === 0) problems.push('Add at least one question')
   if (questionCount > MAX_QUESTIONS) problems.push(`At most ${MAX_QUESTIONS} questions fit on one page`)

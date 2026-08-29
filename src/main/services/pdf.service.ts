@@ -1,15 +1,20 @@
 import PDFDocument from 'pdfkit'
 import QRCode from 'qrcode'
-import type { Student, Test } from '@shared/types'
+import type { LabelStyle, Student, Test } from '@shared/types'
 import { formatQrPayload } from '@shared/codes'
 import {
+  AS_COLUMN_GAP,
+  AS_GRID_LEFT,
+  AS_GRID_TOP,
+  AS_NUMBER_FONT_SIZE,
+  AS_NUMBER_GUTTER,
   BOX_LABEL_FONT_SIZE,
   BUBBLE_RADIUS,
   BUBBLE_X,
   BUBBLE_Y_OFFSET,
   CHOICE_COLUMN_GAP,
   CHOICE_LABEL_GUTTER,
-  CHOICE_LETTERS,
+  GRID_BOTTOM,
   GRID_RIGHT,
   GRID_TOP,
   INSTRUCTIONS_BASELINE_Y,
@@ -37,8 +42,13 @@ import {
   TITLE_BASELINE_Y,
   TITLE_FONT_SIZE,
   TITLE_X,
+  bubbleCenter,
+  choiceLabel,
+  layoutKind,
   lineHeight,
+  measureHeader,
   measureTest,
+  type HeaderMeasure,
   type SheetLayout,
   type TestMeasure
 } from '@shared/layout'
@@ -103,15 +113,28 @@ export class PdfService {
     ]
     if (sheets.length === 0) throw new AppError('VALIDATION', 'Nothing to print: choose students or blank copies')
 
-    const measure = measureTest({
-      title: job.test.title,
-      instructions: job.test.instructions,
-      questions: job.test.questions.map((q) => ({ stem: q.stem, choices: q.choices }))
-    })
-    if (!measure.fits) {
-      const bad = measure.questions.find((q) => !q.fits)
-      const detail = bad ? `Question ${bad.index + 1}: ${bad.problems.join('; ')}` : measure.problems.join('. ')
-      throw new AppError('CONFLICT', `The test no longer fits on one page. ${detail}`)
+    const answerSheet = layoutKind(job.layout) === 'answer_sheet'
+    let measure: HeaderMeasure | TestMeasure
+    if (answerSheet) {
+      measure = measureHeader(job.test.title, job.test.instructions)
+      if (measure.problems.length > 0) {
+        throw new AppError('CONFLICT', `The header no longer fits. ${measure.problems.join('. ')}`)
+      }
+      if (job.layout.cells?.length !== job.test.questions.length) {
+        throw new AppError('CONFLICT', 'The stored layout does not match the questions. Finalize the test again.')
+      }
+    } else {
+      const full = measureTest({
+        title: job.test.title,
+        instructions: job.test.instructions,
+        questions: job.test.questions.map((q) => ({ stem: q.stem, choices: q.choices }))
+      })
+      if (!full.fits) {
+        const bad = full.questions.find((q) => !q.fits)
+        const detail = bad ? `Question ${bad.index + 1}: ${bad.problems.join('; ')}` : full.problems.join('. ')
+        throw new AppError('CONFLICT', `The test no longer fits on one page. ${detail}`)
+      }
+      measure = full
     }
     if (job.layout.questionCount !== job.test.questions.length) {
       throw new AppError('CONFLICT', 'The stored layout does not match the questions. Finalize the test again.')
@@ -151,14 +174,15 @@ export class PdfService {
   }
 }
 
-function drawSheet(doc: Doc, job: PdfJob, measure: TestMeasure, sheet: SheetSpec): void {
+function drawSheet(doc: Doc, job: PdfJob, measure: HeaderMeasure | TestMeasure, sheet: SheetSpec): void {
   const { test, layout } = job
   drawRegistrationMarks(doc)
   drawHeader(doc, job, measure, sheet)
   drawQr(doc, formatQrPayload({ testCode: test.code, studentCode: sheet.student?.code ?? null, layoutVersion: test.layoutVersion }))
   drawInstructions(doc, measure)
   drawGridTopRule(doc)
-  drawGrid(doc, layout, measure)
+  if ('questions' in measure) drawGrid(doc, layout, measure)
+  else drawAnswerGrid(doc, layout, test)
 }
 
 function drawRegistrationMarks(doc: Doc): void {
@@ -171,7 +195,7 @@ function drawRegistrationMarks(doc: Doc): void {
   doc.circle(cx, cy, half).fill(INK)
 }
 
-function drawHeader(doc: Doc, job: PdfJob, measure: TestMeasure, sheet: SheetSpec): void {
+function drawHeader(doc: Doc, job: PdfJob, measure: HeaderMeasure, sheet: SheetSpec): void {
   const { test, dateLabel } = job
   doc.fillColor(INK).font(FONT_BOLD).fontSize(TITLE_FONT_SIZE)
   measure.titleLines.forEach((line, i) => {
@@ -232,7 +256,7 @@ function drawQr(doc: Doc, payload: string): void {
   doc.text(payload, QR_X + (QR_SIZE - width) / 2, QR_CODE_TEXT_Y + QR_CODE_FONT_SIZE * ASCENT, NO_WRAP)
 }
 
-function drawInstructions(doc: Doc, measure: TestMeasure): void {
+function drawInstructions(doc: Doc, measure: HeaderMeasure): void {
   doc.fillColor(INK).font(FONT_ITALIC).fontSize(INSTRUCTIONS_FONT_SIZE)
   measure.instructionLines.forEach((line, i) => {
     doc.text(line, INSTRUCTIONS_X, INSTRUCTIONS_BASELINE_Y + i * lineHeight(INSTRUCTIONS_FONT_SIZE), NO_WRAP)
@@ -243,16 +267,51 @@ function drawGridTopRule(doc: Doc): void {
   doc.lineWidth(0.5).moveTo(TEXT_COL_X, GRID_TOP).lineTo(GRID_RIGHT, GRID_TOP).stroke(INK)
 }
 
-/** The choice letter centered inside each bubble (capital centered on the bubble middle). */
-function drawBubbleLetters(doc: Doc, layout: SheetLayout, rowY: number, count: number): void {
+/** The choice label centered inside each bubble (capital centered on the bubble middle). */
+function drawBubbleLetters(doc: Doc, xs: number[], rowY: number, labelStyle: LabelStyle): void {
   doc.fillColor(BUBBLE_LABEL_GRAY).font(FONT).fontSize(BUBBLE_LABEL_FONT_SIZE)
   const baseline = rowY + (BUBBLE_LABEL_FONT_SIZE * ASCENT) / 2
-  for (let c = 0; c < count; c++) {
-    const bx = layout.bubbleX[c] ?? BUBBLE_X[c] ?? 0
-    const letter = CHOICE_LETTERS[c] ?? ''
+  xs.forEach((bx, c) => {
+    const letter = choiceLabel(c, labelStyle)
     doc.text(letter, bx - doc.widthOfString(letter) / 2, baseline, NO_WRAP)
-  }
+  })
   doc.fillColor(INK)
+}
+
+/**
+ * Answer-sheet-only grid: numbered rows of bubbles down each column, a
+ * light rule every five rows, a divider between columns. Geometry comes
+ * entirely from the layout cells so the grader reads the same positions.
+ */
+function drawAnswerGrid(doc: Doc, layout: SheetLayout, test: Test): void {
+  const cells = layout.cells ?? []
+  cells.forEach((cell, i) => {
+    const count = layout.choiceCounts[i] ?? 0
+    const labelStyle = test.questions[i]?.labelStyle ?? 'letters'
+    doc.fillColor(INK).font(FONT_BOLD).fontSize(AS_NUMBER_FONT_SIZE)
+    const num = `${i + 1}.`
+    doc.text(num, cell.left + AS_NUMBER_GUTTER - 6 - doc.widthOfString(num), cell.y + (AS_NUMBER_FONT_SIZE * ASCENT) / 2, NO_WRAP)
+    const xs: number[] = []
+    doc.lineWidth(0.75)
+    for (let c = 0; c < count; c++) {
+      const center = bubbleCenter(layout, i, c)
+      if (!center) throw new AppError('INTERNAL', `Question ${i + 1} has no bubble ${c + 1} in the layout`)
+      doc.circle(center[0], center[1], layout.bubbleRadius || BUBBLE_RADIUS).stroke(INK)
+      xs.push(center[0])
+    }
+    drawBubbleLetters(doc, xs, cell.y, labelStyle)
+    const next = cells[i + 1]
+    if (cell.row % 5 === 4 && next && next.column === cell.column) {
+      const y = cell.top + cell.height
+      doc.lineWidth(0.25).moveTo(cell.left, y).lineTo(cell.left + cell.width, y).stroke(RULE)
+    }
+  })
+  const columns = cells.reduce((max, cell) => Math.max(max, cell.column), -1) + 1
+  const columnWidth = cells[0]?.width ?? 0
+  for (let col = 1; col < columns; col++) {
+    const x = AS_GRID_LEFT + col * (columnWidth + AS_COLUMN_GAP) - AS_COLUMN_GAP / 2
+    doc.lineWidth(0.25).moveTo(x, AS_GRID_TOP).lineTo(x, GRID_BOTTOM).stroke(RULE)
+  }
 }
 
 function drawGrid(doc: Doc, layout: SheetLayout, measure: TestMeasure): void {
@@ -289,7 +348,7 @@ function drawGrid(doc: Doc, layout: SheetLayout, measure: TestMeasure): void {
       const bx = layout.bubbleX[c] ?? BUBBLE_X[c] ?? 0
       doc.circle(bx, rowY, layout.bubbleRadius || BUBBLE_RADIUS).stroke(INK)
     }
-    drawBubbleLetters(doc, layout, rowY, count)
+    drawBubbleLetters(doc, Array.from({ length: count }, (_, c) => layout.bubbleX[c] ?? BUBBLE_X[c] ?? 0), rowY, 'letters')
     doc.lineWidth(0.25).moveTo(TEXT_COL_X, bottom).lineTo(GRID_RIGHT, bottom).stroke(RULE)
   })
 }

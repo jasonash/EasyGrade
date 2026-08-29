@@ -1,5 +1,5 @@
 import type { SheetLayout } from '../../src/shared/layout'
-import { NAME_BOX, QR_SIZE, QR_X, QR_Y, buildSheetLayout } from '../../src/shared/layout'
+import { NAME_BOX, QR_SIZE, QR_X, QR_Y, bubbleCenter, buildSheetLayout } from '../../src/shared/layout'
 import type { Student, Test } from '../../src/shared/types'
 import type { ScanContext } from '../../src/shared/schemas'
 import { PdfService } from '../../src/main/services/pdf.service'
@@ -109,8 +109,10 @@ export function cloneImage(img: GrayImage): GrayImage {
 /** Paint a disc of the given gray level (0 black) centred on a bubble. `coverage` scales the radius. */
 export function fillBubble(page: RasterPage, layout: SheetLayout, q: number, choice: number, gray: number, coverage = 0.95): void {
   const scale = page.scale
-  const cx = (layout.bubbleX[choice] ?? 0) * scale
-  const cy = (layout.rowY[q] ?? 0) * scale
+  const center = bubbleCenter(layout, q, choice)
+  if (!center) throw new Error(`No bubble ${choice} for question ${q}`)
+  const cx = center[0] * scale
+  const cy = center[1] * scale
   const r = layout.bubbleRadius * scale * coverage
   paintDisc(page.image, cx, cy, r, gray)
 }

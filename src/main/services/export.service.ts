@@ -1,7 +1,7 @@
 import type { CsvCell } from '@shared/csv'
 import { fileSlug, toCsv } from '@shared/csv'
-import { CHOICE_LETTERS } from '@shared/layout'
-import type { QuestionFlag } from '@shared/schemas'
+import { choiceLabel } from '@shared/layout'
+import type { LabelStyle, QuestionFlag } from '@shared/schemas'
 import type { SectionRepository } from '../db/repositories/section.repo'
 import type { StudentRepository } from '../db/repositories/student.repo'
 import type { TestRepository } from '../db/repositories/test.repo'
@@ -28,8 +28,8 @@ const FLAG_WORDS: Record<QuestionFlag['kind'], string> = {
   low_confidence: 'faint'
 }
 
-function letter(choice: number | null | undefined): string {
-  return choice === null || choice === undefined ? '' : (CHOICE_LETTERS[choice] ?? String(choice + 1))
+function letter(choice: number | null | undefined, labelStyle: LabelStyle = 'letters'): string {
+  return choice === null || choice === undefined ? '' : choiceLabel(choice, labelStyle)
 }
 
 function percent(correct: number, possible: number): number | null {
@@ -64,7 +64,7 @@ export class ExportService {
         r.possibleCount,
         percent(r.correctCount, r.possibleCount)
       ]
-      for (let q = 0; q < questionCount; q++) line.push(letter(r.finalAnswers[q]))
+      for (let q = 0; q < questionCount; q++) line.push(letter(r.finalAnswers[q], view.questions[q]?.labelStyle))
       line.push(
         r.flags.map((f) => `Q${f.q + 1} ${FLAG_WORDS[f.kind]}`).join('; '),
         r.reviewed ? 'yes' : 'no',
@@ -80,7 +80,7 @@ export class ExportService {
     }
     // Key row at the bottom so the sheet is self-describing.
     const keyLine: CsvCell[] = ['Answer key', '', '', '', '', '', '']
-    for (const q of view.questions) keyLine.push(letter(q.correctChoice))
+    for (const q of view.questions) keyLine.push(letter(q.correctChoice, q.labelStyle))
     keyLine.push('', '', '')
     rows.push(keyLine)
 

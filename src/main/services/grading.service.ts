@@ -209,7 +209,12 @@ export class GradingService {
     const test = this.requireTest(testId)
     const roster = this.students.listBySection(test.sectionId, false)
     const summary = this.summarize(test, roster.length)
-    const questions = test.questions.map((q) => ({ position: q.position, correctChoice: q.correctChoice, choiceCount: q.choices.length }))
+    const questions = test.questions.map((q) => ({
+      position: q.position,
+      correctChoice: q.correctChoice,
+      choiceCount: q.choices.length,
+      labelStyle: q.labelStyle
+    }))
 
     const rows: ResultRow[] = []
     for (const result of this.results.listByTest(testId)) {

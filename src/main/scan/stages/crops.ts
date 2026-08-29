@@ -1,5 +1,5 @@
 import type { SheetLayout } from '@shared/layout'
-import { GRID_RIGHT, TEXT_COL_X } from '@shared/layout'
+import { GRID_RIGHT, TEXT_COL_X, questionBox } from '@shared/layout'
 import type { DetectedRow } from '@shared/schemas'
 import { crop, resizeToWidth, type GrayImage } from '../image'
 import { CANONICAL_SCALE, LOW_CONFIDENCE, THUMBNAIL_WIDTH } from '../thresholds'
@@ -18,12 +18,16 @@ export function makeThumbnail(img: GrayImage): GrayImage {
   return resizeToWidth(img, THUMBNAIL_WIDTH)
 }
 
+/** The question's slot (standard) or its grid cell (answer sheet), for the review drawer. */
 export function rowCrop(canonical: GrayImage, layout: SheetLayout, q: number): GrayImage {
-  const top = (layout.slotTop[q] ?? 0) * CANONICAL_SCALE
-  const height = layout.slotHeight * CANONICAL_SCALE
-  const x = (TEXT_COL_X - 4) * CANONICAL_SCALE
-  const width = (GRID_RIGHT - TEXT_COL_X + 8) * CANONICAL_SCALE
-  return crop(canonical, { x, y: top, width, height })
+  const box = questionBox(layout, q, TEXT_COL_X - 4, GRID_RIGHT + 4) ?? [TEXT_COL_X - 4, 0, GRID_RIGHT - TEXT_COL_X + 8, layout.slotHeight]
+  const [left, top, width, height] = box
+  return crop(canonical, {
+    x: left * CANONICAL_SCALE,
+    y: top * CANONICAL_SCALE,
+    width: width * CANONICAL_SCALE,
+    height: height * CANONICAL_SCALE
+  })
 }
 
 export function boxCrop(canonical: GrayImage, box: readonly [number, number, number, number]): GrayImage {

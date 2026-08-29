@@ -4,7 +4,7 @@ import CheckIcon from '@mui/icons-material/Check'
 import CloseIcon from '@mui/icons-material/Close'
 import UndoIcon from '@mui/icons-material/Undo'
 import type { GradeResult, ScanPageDetail, StoredQuestion } from '@shared/types'
-import { CHOICE_LETTERS } from '@shared/layout'
+import { choiceLabel } from '@shared/layout'
 import { scanImageUrl } from '@shared/scan-url'
 import { choiceLetter, flagKindLabel } from '@/lib/grading'
 
@@ -50,23 +50,23 @@ export function AnswerRows({ questions, result, page, busyQ, onOverride }: Props
                 Q{q + 1}
               </Typography>
               <Typography variant="h6" sx={{ width: 22, textAlign: 'center', fontWeight: 600 }}>
-                {choiceLetter(final)}
+                {choiceLetter(final, question.labelStyle)}
               </Typography>
               {correct ? (
                 <CheckIcon fontSize="small" color="success" />
               ) : (
-                <Tooltip title={`Key: ${choiceLetter(question.correctChoice)}`}>
+                <Tooltip title={`Key: ${choiceLetter(question.correctChoice, question.labelStyle)}`}>
                   <CloseIcon fontSize="small" color="error" />
                 </Tooltip>
               )}
               {!correct ? (
                 <Typography variant="caption" color="text.secondary">
-                  key {choiceLetter(question.correctChoice)}
+                  key {choiceLetter(question.correctChoice, question.labelStyle)}
                 </Typography>
               ) : null}
               {flag ? <Chip size="small" color="warning" variant="outlined" label={flagKindLabel(flag.kind)} /> : null}
               {override ? (
-                <Tooltip title={`Detected ${choiceLetter(override.rawChoice)}${override.note ? `. ${override.note}` : ''}`}>
+                <Tooltip title={`Detected ${choiceLetter(override.rawChoice, question.labelStyle)}${override.note ? `. ${override.note}` : ''}`}>
                   <Chip size="small" color="info" variant="outlined" label="edited" />
                 </Tooltip>
               ) : null}
@@ -87,7 +87,7 @@ export function AnswerRows({ questions, result, page, busyQ, onOverride }: Props
               >
                 {question.choices.map((_, c) => (
                   <ToggleButton key={c} value={String(c)} sx={{ px: 1.25, py: 0.5, minWidth: 36 }}>
-                    {CHOICE_LETTERS[c]}
+                    {choiceLabel(c, question.labelStyle)}
                   </ToggleButton>
                 ))}
                 <ToggleButton value={BLANK} sx={{ px: 1.25, py: 0.5 }}>

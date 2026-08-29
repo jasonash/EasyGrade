@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { IdSchema } from './common'
 import { MAX_BUBBLES, MAX_SHEET_QUESTIONS } from '../layout/constants'
+import type { LabelStyle } from './test'
 import type { GradeResult, ScanPageDetail } from './scan'
 import type { Student } from './student'
 import type { TestSummary } from './test'
@@ -62,6 +63,7 @@ export interface ResultsQuestion {
   position: number
   correctChoice: number
   choiceCount: number
+  labelStyle: LabelStyle
 }
 
 export interface TestResults {

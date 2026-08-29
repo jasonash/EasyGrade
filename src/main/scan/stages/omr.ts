@@ -1,5 +1,5 @@
 import type { SheetLayout } from '@shared/layout'
-import { REG_MARK_CENTERS } from '@shared/layout'
+import { REG_MARK_CENTERS, bubbleCenter } from '@shared/layout'
 import type { DetectedRow, RowState } from '@shared/schemas'
 import { discMean, median, type GrayImage } from '../image'
 import {
@@ -57,8 +57,10 @@ export function sampleFills(canonical: GrayImage, layout: SheetLayout, refs: Pag
     const span = Math.max(MIN_INK_SPAN, paper - refs.ink)
     const fills: number[] = []
     for (let c = 0; c < count; c++) {
-      const bx = (layout.bubbleX[c] ?? 0) * CANONICAL_SCALE
-      const mean = discMean(canonical, bx, rowY, radius)
+      const center = bubbleCenter(layout, q, c)
+      const bx = (center?.[0] ?? 0) * CANONICAL_SCALE
+      const by = (center?.[1] ?? 0) * CANONICAL_SCALE
+      const mean = discMean(canonical, bx, by, radius)
       const darkness = (paper - mean) / span
       fills.push(Math.round(Math.min(1, Math.max(0, darkness)) * 1000) / 1000)
     }
