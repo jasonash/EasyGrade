@@ -1,10 +1,13 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { createGray, rotate, type GrayImage } from '../../src/main/scan/image'
 import { processPage } from '../../src/main/scan/pipeline'
-import { pageReferences, sampleRawFills } from '../../src/main/scan/stages/omr'
+import { letterBaselines, pageReferences, sampleRawFills } from '../../src/main/scan/stages/omr'
+import { rasterize } from '../../src/main/scan/stages/rasterize'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import type { RasterPage } from '../../src/main/scan/stages/rasterize'
 import { CANONICAL_HEIGHT, CANONICAL_WIDTH, T_BLANK } from '../../src/main/scan/thresholds'
-import { CHOICE_LETTERS } from '../../src/shared/layout'
+import { CHOICE_LETTERS, buildSheetLayout } from '../../src/shared/layout'
 import {
   SYN_CHOICE_COUNTS,
   SYN_KEY,
@@ -90,6 +93,25 @@ describe('scan pipeline on synthetic sheets', () => {
     expect(thumbnail.width).toBe(300)
     expect(Object.keys(crops).sort()).toEqual(Array.from({ length: 10 }, (_, i) => `row_${i}`))
     expect(result.flags).toEqual(['low_confidence'])
+  })
+
+  const realStandard = join(__dirname, '..', 'fixtures', 'real', 'scansnap_standard_letters.pdf')
+  it.skipIf(!existsSync(realStandard))('reads the ScanSnap scan of a standard sheet printed with bubble letters (2026-08-29)', async () => {
+    // EasyGrade-standard-scan-test.pdf (10 questions with 4,2,5,4,2,5,4,3,5,2 choices) filled in pencil by Jason:
+    // B A C C blank C B(light) A+C blank A. Empty "B" bubbles read up to 0.20 raw on this sheet.
+    const lettersLayout = buildSheetLayout([4, 2, 5, 4, 2, 5, 4, 3, 5, 2])
+    const lettersCtx = syntheticContext({ tests: { STNDR1: { id: 13, sectionId: 1, layoutVersion: 1, layout: lettersLayout } } })
+    const pages = await rasterize(readFileSync(realStandard), 'application/pdf')
+    const { result, canonical } = await processPage({ pageIndex: 0, image: (pages[0] as RasterPage).image }, lettersCtx)
+    expect(result.qr?.payload.testCode).toBe('STNDR1')
+    expect(result.alignment.quality).toBe('good')
+    expect(result.bucket).toBe('graded')
+    const read = (result.answers ?? []).map((row) => (row.state === 'filled' ? (CHOICE_LETTERS[row.choice ?? 0] ?? '?') : row.state))
+    expect(read).toEqual(['B', 'A', 'C', 'C', 'blank', 'C', 'B', 'multiple', 'blank', 'A'])
+    const baselines = letterBaselines(sampleRawFills(canonical as GrayImage, lettersLayout, pageReferences(canonical as GrayImage)))
+    expect(Math.min(...baselines)).toBeGreaterThan(0.08)
+    expect(Math.max(...baselines)).toBeLessThan(0.2)
+    expect((result.answers ?? []).filter((r) => r.state === 'filled').every((r) => r.confidence >= 0.5)).toBe(true)
   })
 
   it('keeps the letters printed inside the bubbles far below the blank threshold, then calibrates them out', async () => {
