@@ -16,6 +16,9 @@ interface TestsState {
   unlock: (id: number) => Promise<Test>
   copy: (input: TestCopyInput) => Promise<Test>
   remove: (id: number) => Promise<void>
+  attachFile: (testId: number) => Promise<Test | null>
+  removeAttachment: (testId: number) => Promise<Test>
+  openAttachment: (testId: number) => Promise<void>
 }
 
 /** Test counts live on sections, so section lists refresh after test changes. */
@@ -78,5 +81,8 @@ export const useTestsStore = create<TestsState>((set) => ({
   remove: async (id) => {
     await unwrap(api.tests.remove(id))
     await refreshAll()
-  }
+  },
+  attachFile: (testId) => unwrap(api.tests.attachFile(testId)),
+  removeAttachment: (testId) => unwrap(api.tests.removeAttachment(testId)),
+  openAttachment: (testId) => unwrap(api.tests.openAttachment(testId))
 }))

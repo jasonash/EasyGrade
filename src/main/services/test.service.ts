@@ -44,12 +44,19 @@ function normalizeLink(url: string): string | null {
 
 export type KeyChangeListener = (testId: number) => void
 
+/** The part of AttachmentService TestService needs: files follow copies and go away with deletes. */
+export interface AttachmentFiles {
+  copy(fromTestId: number, toTestId: number): void
+  removeFolder(testId: number): void
+}
+
 export class TestService {
   private readonly keyListeners: KeyChangeListener[] = []
 
   constructor(
     private readonly repo: TestRepository,
-    private readonly sections: SectionRepository
+    private readonly sections: SectionRepository,
+    private readonly attachments: AttachmentFiles | null = null
   ) {}
 
   /** Called after the answer key changes or the test is re-finalized, so results can be rescored. */
@@ -273,7 +280,7 @@ export class TestService {
     const parsed = TestCopyInputSchema.parse(input)
     const source = this.get(parsed.id)
     this.requireSection(parsed.sectionId)
-    return this.repo.insert({
+    const created = this.repo.insert({
       sectionId: parsed.sectionId,
       kind: source.kind,
       title: parsed.title ?? source.title,
@@ -288,11 +295,17 @@ export class TestService {
         countOverridden: q.countOverridden
       }))
     })
+    if (this.attachments && source.attachment) {
+      this.attachments.copy(source.id, created.id)
+      return this.get(created.id)
+    }
+    return created
   }
 
   remove(id: number): void {
     this.get(id)
     this.repo.delete(id)
+    this.attachments?.removeFolder(id)
   }
 
   private requireCapacity(questionCount: number, defaultChoiceCount: number): void {

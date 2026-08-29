@@ -6,6 +6,7 @@ import { SectionRepository } from '../db/repositories/section.repo'
 import { SettingsRepository } from '../db/repositories/settings.repo'
 import { StudentRepository } from '../db/repositories/student.repo'
 import { TestRepository } from '../db/repositories/test.repo'
+import { AttachmentService } from './attachment.service'
 import { BackupService, type BackupOptions } from './backup.service'
 import { ExportService } from './export.service'
 import { GradingService } from './grading.service'
@@ -22,6 +23,7 @@ export interface Services {
   sections: SectionService
   students: StudentService
   tests: TestService
+  attachments: AttachmentService
   print: PrintService
   scan: ScanService
   grading: GradingService
@@ -38,13 +40,15 @@ export function createServices(db: Db, scanOptions: ScanServiceOptions, backupOp
   const resultRepo = new ResultRepository(db)
   const scanRepo = new ScanRepository(db)
   const grading = new GradingService(resultRepo, testRepo, scanRepo, studentRepo)
-  const tests = new TestService(testRepo, sectionRepo)
+  const attachments = new AttachmentService(testRepo, { attachmentsDir: backupOptions.attachmentsDir })
+  const tests = new TestService(testRepo, sectionRepo, attachments)
   tests.onKeyChange((testId) => grading.regradeTest(testId))
   const settings = new SettingsService(new SettingsRepository(db))
   return {
     sections: new SectionService(sectionRepo),
     students: new StudentService(studentRepo, sectionRepo),
     tests,
+    attachments,
     print: new PrintService(testRepo, studentRepo, new PrintRunRepository(db), new PdfService()),
     scan: new ScanService(scanRepo, testRepo, studentRepo, resultRepo, grading, scanOptions),
     grading,

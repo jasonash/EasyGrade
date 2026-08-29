@@ -1,8 +1,9 @@
-import { app, BrowserWindow, clipboard, dialog } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, shell } from 'electron'
 import { readFile, writeFile } from 'fs/promises'
 import { basename, join } from 'path'
 import { IPC } from '@shared/ipc'
 import type {
+  Test,
   AppInfo,
   ImportCommitInput,
   ImportPreviewInput,
@@ -22,6 +23,7 @@ import type {
 import { ROSTER_TEMPLATE_FILENAME } from '@shared/roster-import'
 import type { Services } from '../services'
 import { AppError } from '../services/errors'
+import { ATTACHMENT_EXTENSIONS } from '../services/attachment.service'
 import { handle } from './handle'
 import { registerBackupHandlers, type BackupHooks } from './backup'
 import { registerExportHandlers } from './export'
@@ -92,6 +94,27 @@ export function registerIpcHandlers(services: () => Services, backupHooks: Backu
   handle<[number], ReturnType<Tests['unlock']>>(IPC.tests.unlock, (id) => services().tests.unlock(id))
   handle<[TestCopyInput], ReturnType<Tests['copy']>>(IPC.tests.copy, (input) => services().tests.copy(input))
   handle<[number], void>(IPC.tests.remove, (id) => services().tests.remove(id))
+  handle<[number], Test | null>(IPC.tests.attachFile, async (testId) => {
+    const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+    const options: Electron.OpenDialogOptions = {
+      title: 'Attach the test',
+      properties: ['openFile'],
+      filters: [
+        { name: 'PDF or image', extensions: [...ATTACHMENT_EXTENSIONS] },
+        { name: 'PDF', extensions: ['pdf'] },
+        { name: 'Images', extensions: ['png', 'jpg', 'jpeg'] }
+      ]
+    }
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    const path = result.filePaths[0]
+    if (result.canceled || path === undefined) return null
+    return services().attachments.attach(testId, path)
+  })
+  handle<[number], Test>(IPC.tests.removeAttachment, (testId) => services().attachments.remove(testId))
+  handle<[number], void>(IPC.tests.openAttachment, async (testId) => {
+    const failure = await shell.openPath(services().attachments.filePath(testId))
+    if (failure) throw new AppError('INTERNAL', `Could not open the file: ${failure}`)
+  })
 
   registerPrintHandlers(services)
   registerScanHandlers(services)

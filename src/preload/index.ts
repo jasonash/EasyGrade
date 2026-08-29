@@ -41,7 +41,10 @@ const api: EasyGradeApi = {
     finalize: (id) => ipcRenderer.invoke(IPC.tests.finalize, id),
     unlock: (id) => ipcRenderer.invoke(IPC.tests.unlock, id),
     copy: (input) => ipcRenderer.invoke(IPC.tests.copy, input),
-    remove: (id) => ipcRenderer.invoke(IPC.tests.remove, id)
+    remove: (id) => ipcRenderer.invoke(IPC.tests.remove, id),
+    attachFile: (testId) => ipcRenderer.invoke(IPC.tests.attachFile, testId),
+    removeAttachment: (testId) => ipcRenderer.invoke(IPC.tests.removeAttachment, testId),
+    openAttachment: (testId) => ipcRenderer.invoke(IPC.tests.openAttachment, testId)
   },
   print: {
     preview: (input) => ipcRenderer.invoke(IPC.print.preview, input),

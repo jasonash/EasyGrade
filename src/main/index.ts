@@ -161,11 +161,13 @@ app.whenReady().then(() => {
 
   const scansDir = join(app.getPath('userData'), 'scans')
   const dbPath = join(app.getPath('userData'), 'easygrade.db')
-  handleScanProtocol(scansDir)
+  const attachmentsDir = join(app.getPath('userData'), 'attachments')
+  handleScanProtocol({ scans: scansDir, attachments: attachmentsDir })
   createSplashWindow()
   const dataStore = new DataStore({
     dbPath,
     scansDir,
+    attachmentsDir,
     workerPath: join(__dirname, 'scan-worker.js'),
     appVersion: app.getVersion(),
     machineName: hostname()

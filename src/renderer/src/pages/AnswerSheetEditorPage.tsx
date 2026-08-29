@@ -51,6 +51,7 @@ import { describeError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { PageHeader } from '@/components/common/PageHeader'
 import { AnswerSheetPreview } from '@/components/editor/AnswerSheetPreview'
+import { AttachmentCard } from '@/components/editor/AttachmentCard'
 import { PasteKeyDialog } from '@/components/editor/PasteKeyDialog'
 import { PrintDialog } from '@/components/print/PrintDialog'
 
@@ -466,6 +467,11 @@ export function AnswerSheetEditorPage(): JSX.Element {
                 )
               }
             }}
+          />
+
+          <AttachmentCard
+            test={test}
+            onChanged={(updated) => setTest((prev) => (prev ? { ...prev, attachment: updated.attachment, updatedAt: updated.updatedAt } : updated))}
           />
 
           <Paper variant="outlined" sx={{ p: 2 }}>

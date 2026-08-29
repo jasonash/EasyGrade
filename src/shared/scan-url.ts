@@ -11,3 +11,9 @@ export function scanImageUrl(relative: string, version?: string | null): string 
   const query = version ? `?v=${encodeURIComponent(version)}` : ''
   return `${SCAN_IMAGE_SCHEME}://scans/${parts.join('/')}${query}`
 }
+
+/** URL of an attachment file (normally its thumbnail) for a test; served from the attachments directory. */
+export function attachmentUrl(testId: number, file: string, version?: string | null): string {
+  const query = version ? `?v=${encodeURIComponent(version)}` : ''
+  return `${SCAN_IMAGE_SCHEME}://attachments/${testId}/${encodeURIComponent(file)}${query}`
+}

@@ -44,6 +44,7 @@ afterAll(() => {
 
 beforeEach(async () => {
   if (scansDir) rmSync(scansDir, { recursive: true, force: true })
+  if (scansDir) rmSync(`${scansDir}-attachments`, { recursive: true, force: true })
   scansDir = mkdtempSync(join(tmpdir(), 'easygrade-maint-'))
   h = harness(makeRunner(pages, ['filled', 'blank-sheet', 'white']), scansDir)
   settings = new SettingsService(new SettingsRepository(h.db))
@@ -170,6 +171,7 @@ describe('BackupService', () => {
     return new BackupService(settings, {
       dbPath,
       scansDir,
+      attachmentsDir: `${scansDir}-attachments`,
       getDb: () => live ?? h.db,
       appVersion: '0.1.0-test',
       machineName: 'test-machine'
@@ -243,7 +245,7 @@ describe('BackupService', () => {
     expect(() => svc.restore(snap.snapshotPath)).toThrow(AppError) // db still open
     live.close()
     live = null
-    const restoreSvc = new BackupService(settings, { dbPath, scansDir: join(root, 'scans'), getDb: () => null, appVersion: 't', machineName: 'm' })
+    const restoreSvc = new BackupService(settings, { dbPath, scansDir: join(root, 'scans'), attachmentsDir: join(root, 'attachments'), getDb: () => null, appVersion: 't', machineName: 'm' })
     const outcome = restoreSvc.restore(snap.snapshotPath, new Date('2026-08-25T13:00:00Z'))
     expect(outcome.scanFilesCopied).toBeGreaterThan(3)
     expect(readdirSync(join(root, 'data')).some((n) => n.startsWith('easygrade.db.before-restore-'))).toBe(true)
@@ -258,7 +260,7 @@ describe('BackupService', () => {
 describe('DataStore', () => {
   it('restores a snapshot in place: closes, swaps, reopens, and rebuilds the services', () => {
     const root = mkdtempSync(join(tmpdir(), 'easygrade-store-'))
-    const store = new DataStore({ dbPath: join(root, 'data', 'easygrade.db'), scansDir: join(root, 'scans'), appVersion: 't', machineName: 'm' })
+    const store = new DataStore({ dbPath: join(root, 'data', 'easygrade.db'), scansDir: join(root, 'scans'), attachmentsDir: join(root, 'attachments'), appVersion: 't', machineName: 'm' })
     try {
       const before = store.open()
       const backupDir = join(root, 'backup')
@@ -294,7 +296,7 @@ describe('DataStore', () => {
     const root = mkdtempSync(join(tmpdir(), 'easygrade-reset-'))
     const dbPath = join(root, 'data', 'easygrade.db')
     const scansDir = join(root, 'scans')
-    const store = new DataStore({ dbPath, scansDir, appVersion: 't', machineName: 'm' })
+    const store = new DataStore({ dbPath, scansDir, attachmentsDir: `${scansDir}-attachments`, appVersion: 't', machineName: 'm' })
     try {
       const before = store.open()
       before.settings.set({ theme: 'light', backupDir: join(root, 'backup') })
