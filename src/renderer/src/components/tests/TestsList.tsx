@@ -23,8 +23,8 @@ interface Props {
   /**
    * The New Test dialog is opened from the page header, so the page owns its
    * open state and renders `NewTestButton` there; the list only asks to open
-   * it from its empty state. A section page skips the dialog: it passes
-   * `open: false` and an `onOpen` that creates the test directly.
+   * it from its empty state. On a section page the section is locked in the
+   * dialog, which still asks for the title and the test type.
    */
   newTest: { open: boolean; onOpen: () => void; onClose: () => void }
 }
@@ -62,7 +62,11 @@ export function TestsList({ sectionId, filter, onClearFilter, newTest }: Props):
     const [targetId] = values.sectionIds
     if (targetId === undefined) return
     try {
-      const test = await create({ sectionId: targetId, title: values.title })
+      const test = await create(
+        values.kind === 'answer_sheet'
+          ? { sectionId: targetId, title: values.title, kind: 'answer_sheet', defaultChoiceCount: values.defaultChoiceCount, questionCount: values.questionCount }
+          : { sectionId: targetId, title: values.title, kind: 'standard' }
+      )
       newTest.onClose()
       openTest(test.id)
     } catch (err) {

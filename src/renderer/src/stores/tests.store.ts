@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Test, TestCopyInput, TestCreateInput, TestKeyUpdate, TestSummary, TestUpdateInput } from '@shared/types'
+import type { AnswerSheetUpdateInput, Test, TestCopyInput, TestCreateInput, TestKeyUpdate, TestSummary, TestUpdateInput } from '@shared/types'
 import { api, unwrap } from '@/api'
 import { useSectionsStore } from './sections.store'
 
@@ -10,6 +10,7 @@ interface TestsState {
   get: (id: number) => Promise<Test>
   create: (input: TestCreateInput) => Promise<Test>
   update: (input: TestUpdateInput) => Promise<Test>
+  updateAnswerSheet: (input: AnswerSheetUpdateInput) => Promise<Test>
   updateKey: (input: TestKeyUpdate) => Promise<Test>
   finalize: (id: number) => Promise<Test>
   unlock: (id: number) => Promise<Test>
@@ -42,6 +43,15 @@ export const useTestsStore = create<TestsState>((set) => ({
   update: async (input) => {
     const test = await unwrap(api.tests.update(input))
     // Keep the list in sync without a full reload on every autosave.
+    set((state) => ({
+      tests: state.tests.map((t) =>
+        t.id === test.id ? { ...t, title: test.title, questionCount: test.questions.length, updatedAt: test.updatedAt } : t
+      )
+    }))
+    return test
+  },
+  updateAnswerSheet: async (input) => {
+    const test = await unwrap(api.tests.updateAnswerSheet(input))
     set((state) => ({
       tests: state.tests.map((t) =>
         t.id === test.id ? { ...t, title: test.title, questionCount: test.questions.length, updatedAt: test.updatedAt } : t

@@ -13,7 +13,7 @@ import { UpdateNotification } from '@/components/common/UpdateNotification'
 import { SectionsPage } from '@/pages/SectionsPage'
 import { SectionDetailPage } from '@/pages/SectionDetailPage'
 import { TestsPage } from '@/pages/TestsPage'
-import { TestEditorPage } from '@/pages/TestEditorPage'
+import { TestEditorSwitch } from '@/pages/TestEditorSwitch'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { GradingPage } from '@/pages/GradingPage'
 import { BatchReviewPage } from '@/pages/BatchReviewPage'
@@ -65,7 +65,7 @@ export function App(): JSX.Element {
         {page === 'sections' ? <SectionsPage /> : null}
         {page === 'section-detail' ? <SectionDetailPage /> : null}
         {page === 'tests' ? <TestsPage /> : null}
-        {page === 'test-editor' ? <TestEditorPage /> : null}
+        {page === 'test-editor' ? <TestEditorSwitch /> : null}
         {page === 'grading' ? <GradingPage /> : null}
         {page === 'batch-review' ? <BatchReviewPage /> : null}
         {page === 'test-results' ? <TestResultsPage /> : null}
