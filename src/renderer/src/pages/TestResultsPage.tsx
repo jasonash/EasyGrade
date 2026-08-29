@@ -38,6 +38,7 @@ import { gradingApi } from '@/lib/grading-api'
 import { describeError } from '@/lib/errors'
 import { useScanImport } from '@/lib/scan-import'
 import { choiceLetter, formatPercent, percentOf } from '@/lib/grading'
+import { formatPoints, pointsEarned } from '@shared/points'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ClickableRow } from '@/components/common/ClickableRow'
 import { LinkButton } from '@/components/common/LinkButton'
@@ -127,6 +128,7 @@ export function TestResultsPage(): JSX.Element {
   }
 
   const rows = view?.rows ?? []
+  const totalPoints = view?.test.totalPoints ?? null
   const shown = useMemo(() => {
     if (filter === 'flagged') return rows.filter((r) => r.result.flags.length > 0)
     if (filter === 'unreviewed') return rows.filter((r) => !r.result.reviewed)
@@ -202,6 +204,12 @@ export function TestResultsPage(): JSX.Element {
 
       <Stack direction="row" spacing={2} sx={{ mb: 3 }} flexWrap="wrap" useFlexGap>
         <Stat label="Average" value={view.averagePercent === null ? '–' : formatPercent(view.averagePercent)} />
+        {totalPoints !== null ? (
+          <Stat
+            label="Average points"
+            value={view.averagePercent === null ? '–' : `${formatPoints((view.averagePercent / 100) * totalPoints)} / ${formatPoints(totalPoints)}`}
+          />
+        ) : null}
         <Stat label="Graded" value={`${rows.length}/${rows.length + missing.length}`} />
         <Stat label="Reviewed" value={`${reviewed}/${rows.length}`} />
         <Stat label="With flags" value={String(flagged)} />
@@ -253,6 +261,7 @@ export function TestResultsPage(): JSX.Element {
                     <TableCell>Student</TableCell>
                     <TableCell align="right">Score</TableCell>
                     <TableCell align="right">%</TableCell>
+                    {totalPoints !== null ? <TableCell align="right">Points</TableCell> : null}
                     {questions.map((q) => (
                       <TableCell key={q.position} align="center" sx={{ px: 0.5, lineHeight: 1.2 }}>
                         Q{q.position + 1}
@@ -283,6 +292,11 @@ export function TestResultsPage(): JSX.Element {
                         {row.result.correctCount}/{row.result.possibleCount}
                       </TableCell>
                       <TableCell align="right">{formatPercent(percentOf(row.result.correctCount, row.result.possibleCount))}</TableCell>
+                      {totalPoints !== null ? (
+                        <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                          <PointsCell correct={row.result.correctCount} possible={row.result.possibleCount} totalPoints={totalPoints} />
+                        </TableCell>
+                      ) : null}
                       {questions.map((q) => {
                         const answer = row.result.finalAnswers[q.position] ?? null
                         const correct = answer !== null && answer === q.correctChoice
@@ -315,7 +329,7 @@ export function TestResultsPage(): JSX.Element {
                 </TableBody>
                 <TableFooter>
                   <TableRow>
-                    <TableCell colSpan={3} sx={{ color: 'text.secondary' }}>
+                    <TableCell colSpan={totalPoints !== null ? 4 : 3} sx={{ color: 'text.secondary' }}>
                       Correct per question
                     </TableCell>
                     {view.perQuestionCorrect.map((rate, q) => (
@@ -352,6 +366,19 @@ export function TestResultsPage(): JSX.Element {
         onClose={() => setPrintOpen(false)}
         onPrinted={() => void reloadTests()}
       />
+    </>
+  )
+}
+
+/** "36.1" with the worth in gray, so the column reads as points out of the test total. */
+function PointsCell({ correct, possible, totalPoints }: { correct: number; possible: number; totalPoints: number }): JSX.Element {
+  const earned = pointsEarned(correct, possible, totalPoints)
+  return (
+    <>
+      {earned === null ? '–' : formatPoints(earned)}
+      <Typography component="span" variant="caption" color="text.secondary">
+        {` / ${formatPoints(totalPoints)}`}
+      </Typography>
     </>
   )
 }

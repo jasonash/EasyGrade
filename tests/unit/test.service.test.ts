@@ -139,6 +139,25 @@ describe('TestService', () => {
     expect(() => service.updateKey({ id: test.id, correctChoices: [1, 4] })).toThrow(/Question 2 has no choice 5/)
   })
 
+  it('sets the gradebook worth at any status, validates it, and copies it', () => {
+    const test = service.create({ sectionId, title: 'Quiz' })
+    expect(test.totalPoints).toBeNull()
+    expect(service.updateTotalPoints({ id: test.id, totalPoints: 50 }).totalPoints).toBe(50)
+    expect(service.list(sectionId)[0]?.totalPoints).toBe(50)
+    expect(() => service.updateTotalPoints({ id: test.id, totalPoints: 0 })).toThrow()
+    expect(() => service.updateTotalPoints({ id: test.id, totalPoints: 5000 })).toThrow()
+    expect(() => service.updateTotalPoints({ id: 999, totalPoints: 10 })).toThrow(AppError)
+
+    service.update({ id: test.id, title: 'Quiz', instructions: '', questions: [q('One'), q('Two')] })
+    const finalized = service.finalize(test.id)
+    expect(service.updateTotalPoints({ id: finalized.id, totalPoints: 12.5 }).totalPoints).toBe(12.5)
+    expect(service.get(test.id).status).toBe('finalized')
+
+    const copy = service.copy({ id: test.id, sectionId: otherSectionId })
+    expect(copy.totalPoints).toBe(12.5)
+    expect(service.updateTotalPoints({ id: test.id, totalPoints: null }).totalPoints).toBeNull()
+  })
+
   it('copies a test into another section as a new draft with its own code', () => {
     const test = service.create({ sectionId, title: 'Quiz' })
     service.update({ id: test.id, title: 'Quiz', instructions: 'Pencil', questions: [q('One', 2)] })

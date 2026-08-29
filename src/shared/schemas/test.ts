@@ -30,6 +30,15 @@ export const DEFAULT_TEST_TITLE = 'Untitled test'
 export const DEFAULT_INSTRUCTIONS = 'Fill in one bubble completely for each question.'
 
 export const TitleSchema = z.string().trim().min(1, 'Title is required').max(MAX_TITLE_CHARS)
+/** Largest "worth" a test can carry; keeps typos like 5000 out of the gradebook. */
+export const MAX_TOTAL_POINTS = 1000
+/** What the whole test is worth in the gradebook; null means scores show as correct/possible and percent only. */
+export const TotalPointsSchema = z.number().positive('Points must be more than zero').max(MAX_TOTAL_POINTS).nullable()
+
+export const TestTotalPointsUpdateSchema = z.object({
+  id: IdSchema,
+  totalPoints: TotalPointsSchema
+})
 export const InstructionsSchema = z.string().trim().max(MAX_INSTRUCTIONS_CHARS)
 export const StemSchema = z.string().trim().min(1, 'Question text is required').max(MAX_STEM_CHARS)
 export const ChoiceTextSchema = z.string().trim().min(1, 'Choice text is required').max(MAX_CHOICE_CHARS)
@@ -190,6 +199,7 @@ export const TestSchema = z.object({
   /** Answer sheets: bubbles per question by default. Null for standard tests. */
   defaultChoiceCount: z.number().int().nullable(),
   linkUrl: z.string().nullable(),
+  totalPoints: z.number().nullable(),
   attachment: TestAttachmentSchema.nullable(),
   layoutVersion: z.number().int().positive(),
   layout: SheetLayoutSchema.nullable(),
@@ -211,6 +221,7 @@ export const TestSummarySchema = z.object({
   title: z.string(),
   status: TestStatusSchema,
   questionCount: z.number().int().nonnegative(),
+  totalPoints: z.number().nullable(),
   layoutVersion: z.number().int().positive(),
   lastPrintedAt: z.string().nullable(),
   resultCount: z.number().int().nonnegative(),
@@ -228,6 +239,7 @@ export type DraftQuestion = z.infer<typeof DraftQuestionSchema>
 export type TestCreateInput = z.infer<typeof TestCreateInputSchema>
 export type TestUpdateInput = z.infer<typeof TestUpdateInputSchema>
 export type TestKeyUpdate = z.infer<typeof TestKeyUpdateSchema>
+export type TestTotalPointsUpdate = z.infer<typeof TestTotalPointsUpdateSchema>
 export type TestCopyInput = z.infer<typeof TestCopyInputSchema>
 export type StoredQuestion = z.infer<typeof StoredQuestionSchema>
 export type Test = z.infer<typeof TestSchema>

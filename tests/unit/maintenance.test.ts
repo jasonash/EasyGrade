@@ -78,6 +78,19 @@ describe('ExportService', () => {
     expect(out.rows).toBe(4)
   })
 
+  it('adds Points and Out of columns when the test is worth something', () => {
+    new TestRepository(h.db).update(h.testId, { totalPoints: 50 })
+    h.grading.overrideAnswer({ resultId: h.results.findByPair(h.testId, h.studentId)?.id ?? 0, q: 0, override: { choice: null } })
+    h.students.create({ sectionId: h.sectionId, lastName: 'Zed', firstName: 'Missing' })
+    const rows = parseCsv(exporter().testCsv(h.testId).csv)
+    expect(rows[0]?.slice(4, 10)).toEqual(['Correct', 'Possible', 'Percent', 'Points', 'Out of', 'Q1'])
+    expect(rows[1]?.slice(4, 9)).toEqual(['10', '10', '100', '50', '50'])
+    expect(rows[2]?.slice(4, 9)).toEqual(['9', '10', '90', '45', '50'])
+    expect(rows[3]?.slice(3, 9)).toEqual(['missing', '', '', '', '', '50'])
+    expect(rows.at(-1)?.[0]).toBe('Answer key')
+    expect(rows.at(-1)?.slice(9, 19)).toEqual(SYN_KEY.map((c) => 'ABCDE'[c]))
+  })
+
   it('exports a section summary with a percent column per finalized test and an average', () => {
     h.tests.create({ sectionId: h.sectionId, title: 'Draft only' })
     const out = exporter().sectionCsv(h.sectionId)
@@ -195,7 +208,7 @@ describe('BackupService', () => {
 
     const manifest = JSON.parse(readFileSync(join(backupDir, 'manifest.json'), 'utf8')) as Record<string, unknown>
     expect(manifest.machineName).toBe('test-machine')
-    expect(manifest.schemaVersion).toBe(4)
+    expect(manifest.schemaVersion).toBe(5)
     expect(manifest.counts).toMatchObject({ results: 2, scanPages: 3 })
 
     const second = svc.create(new Date('2026-08-25T11:00:00Z'))

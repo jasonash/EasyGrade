@@ -58,6 +58,7 @@ export type {
   TestCopyInput,
   TestCreateInput,
   TestKeyUpdate,
+  TestTotalPointsUpdate,
   TestStatus,
   TestSummary,
   TestUpdateInput,

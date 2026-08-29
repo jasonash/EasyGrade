@@ -52,6 +52,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { PageHeader } from '@/components/common/PageHeader'
 import { AnswerSheetPreview } from '@/components/editor/AnswerSheetPreview'
 import { AttachmentCard } from '@/components/editor/AttachmentCard'
+import { PointsField } from '@/components/editor/PointsField'
 import { PasteKeyDialog } from '@/components/editor/PasteKeyDialog'
 import { PrintDialog } from '@/components/print/PrintDialog'
 
@@ -411,7 +412,7 @@ export function AnswerSheetEditorPage(): JSX.Element {
 
       {readOnly ? (
         <Alert severity="info" sx={{ mb: 2 }}>
-          The layout is locked. The answer key and the link stay editable
+          The layout is locked. The answer key, the link, and the points it is worth stay editable
           {test.resultCount > 0 ? `; changing the key regrades ${test.resultCount} existing results` : ''}. Unlock to change the title, instructions, or
           bubbles; printed sheets will need to be reprinted after you finalize again.
         </Alert>
@@ -424,19 +425,22 @@ export function AnswerSheetEditorPage(): JSX.Element {
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 340px', lg: 'minmax(0, 7fr) minmax(0, 5fr)' }, gap: 3, alignItems: 'start' }}>
         <Stack spacing={2}>
-          <TextField
-            label="Instructions"
-            value={state.instructions}
-            onChange={(e) => edit({ ...state, instructions: e.target.value.replace(/[\r\n]+/g, ' ').slice(0, MAX_INSTRUCTIONS_CHARS) })}
-            onFocus={(e) => {
-              if (!readOnly && state.instructions === DEFAULT_INSTRUCTIONS) e.target.select()
-            }}
-            size="small"
-            fullWidth
-            placeholder={DEFAULT_INSTRUCTIONS}
-            helperText={`${state.instructions.length}/${MAX_INSTRUCTIONS_CHARS}. Optional, printed above the bubbles.`}
-            slotProps={{ input: { readOnly } }}
-          />
+          <Stack direction="row" spacing={2} alignItems="flex-start">
+            <TextField
+              label="Instructions"
+              value={state.instructions}
+              onChange={(e) => edit({ ...state, instructions: e.target.value.replace(/[\r\n]+/g, ' ').slice(0, MAX_INSTRUCTIONS_CHARS) })}
+              onFocus={(e) => {
+                if (!readOnly && state.instructions === DEFAULT_INSTRUCTIONS) e.target.select()
+              }}
+              size="small"
+              fullWidth
+              placeholder={DEFAULT_INSTRUCTIONS}
+              helperText={`${state.instructions.length}/${MAX_INSTRUCTIONS_CHARS}. Optional, printed above the bubbles.`}
+              slotProps={{ input: { readOnly } }}
+            />
+            <PointsField test={test} onChanged={(updated) => setTest((prev) => (prev ? { ...prev, totalPoints: updated.totalPoints, updatedAt: updated.updatedAt } : updated))} />
+          </Stack>
           <TextField
             label="Link to the test"
             value={state.linkUrl}

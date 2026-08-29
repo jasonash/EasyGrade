@@ -17,6 +17,7 @@ import { useUiStore } from '@/stores/ui.store'
 import { gradingApi } from '@/lib/grading-api'
 import { describeError } from '@/lib/errors'
 import { BUCKETS, formatPercent, percentOf } from '@/lib/grading'
+import { pointsLabel } from '@shared/points'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Code } from '@/components/common/Code'
 import { LinkButton } from '@/components/common/LinkButton'
@@ -263,6 +264,7 @@ export function PageReviewDrawer({ pageId, pageIds, toReviewIds, onNavigate, onC
   const bucketMeta = page ? BUCKETS.find((b) => b.key === page.bucket) : undefined
   const score = result ? `${result.correctCount}/${result.possibleCount}` : null
   const percent = result ? formatPercent(percentOf(result.correctCount, result.possibleCount)) : ''
+  const points = result ? pointsLabel(result.correctCount, result.possibleCount, test?.totalPoints ?? page?.testTotalPoints ?? null) : null
   const showResultsLink = page?.bucket === 'graded' && page.testId !== null && uiPage !== 'test-results'
 
   return (
@@ -291,6 +293,7 @@ export function PageReviewDrawer({ pageId, pageIds, toReviewIds, onNavigate, onC
                 </>
               ) : null}
               {score ? ` · ${score} (${percent})` : ''}
+              {points ? ` · ${points}` : ''}
             </Typography>
             <Typography variant="body2" color="text.secondary" noWrap>
               {page?.testTitle ?? (page ? 'No test identified' : '')}

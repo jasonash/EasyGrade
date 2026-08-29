@@ -29,6 +29,7 @@ interface PageRow {
   id: number
   test_title: string | null
   test_code: string | null
+  test_total_points: number | null
   student_last: string | null
   student_first: string | null
   student_number: string | null
@@ -54,7 +55,7 @@ interface PageRow {
 }
 
 const PAGE_SELECT = `
-  SELECT p.*, t.title AS test_title, t.code AS test_code,
+  SELECT p.*, t.title AS test_title, t.code AS test_code, t.total_points AS test_total_points,
     st.last_name AS student_last, st.first_name AS student_first, st.student_number,
     COALESCE(ss.name, ts.name) AS section_name
   FROM scan_pages p
@@ -99,6 +100,7 @@ function toPage(row: PageRow): ScanPageDetail {
     id: row.id,
     testTitle: row.test_title,
     testCode: row.test_code,
+    testTotalPoints: row.test_total_points,
     studentName,
     studentNumber: row.student_number,
     sectionName: row.section_name,

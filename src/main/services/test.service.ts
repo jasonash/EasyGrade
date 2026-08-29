@@ -5,6 +5,7 @@ import type {
   TestCreateInput,
   TestKeyUpdate,
   TestSummary,
+  TestTotalPointsUpdate,
   TestUpdateInput
 } from '@shared/types'
 import {
@@ -17,6 +18,7 @@ import {
   TestCopyInputSchema,
   TestCreateInputSchema,
   TestKeyUpdateSchema,
+  TestTotalPointsUpdateSchema,
   TestUpdateInputSchema,
   TitleSchema
 } from '@shared/schemas'
@@ -207,6 +209,19 @@ export class TestService {
     return this.get(parsed.id)
   }
 
+  /**
+   * What the test is worth in the gradebook. Any status: the worth is not
+   * printed and results derive their points from it at display time, so
+   * nothing needs regrading.
+   */
+  updateTotalPoints(input: TestTotalPointsUpdate): Test {
+    const parsed = TestTotalPointsUpdateSchema.parse(input)
+    this.get(parsed.id)
+    const updated = this.repo.update(parsed.id, { totalPoints: parsed.totalPoints })
+    if (!updated) throw new AppError('NOT_FOUND', `Test ${parsed.id} not found`)
+    return updated
+  }
+
   finalize(id: number): Test {
     const test = this.get(id)
     if (test.status === 'finalized') return test
@@ -287,6 +302,7 @@ export class TestService {
       instructions: source.instructions,
       defaultChoiceCount: source.defaultChoiceCount,
       linkUrl: source.linkUrl,
+      totalPoints: source.totalPoints,
       questions: source.questions.map((q) => ({
         stem: q.stem,
         choices: q.choices,
