@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { IdSchema } from './common'
-import { MAX_CHOICES, MAX_QUESTIONS } from '../layout/constants'
+import { MAX_BUBBLES, MAX_SHEET_QUESTIONS } from '../layout/constants'
 import type { GradeResult, ScanPageDetail } from './scan'
 import type { Student } from './student'
 import type { TestSummary } from './test'
@@ -11,7 +11,7 @@ import type { TestSummary } from './test'
  * read models behind the Results and Student views.
  */
 
-const AnswerSchema = z.number().int().min(0).max(MAX_CHOICES - 1).nullable()
+const AnswerSchema = z.number().int().min(0).max(MAX_BUBBLES - 1).nullable()
 
 export const AssignPageInputSchema = z.object({
   pageId: IdSchema,
@@ -20,7 +20,7 @@ export const AssignPageInputSchema = z.object({
   /** When the pair already has a result, replace it instead of reporting a conflict. */
   replace: z.boolean().default(false),
   /** Manual answers for a page whose bubbles could not be read (one entry per question). */
-  answers: z.array(AnswerSchema).min(1).max(MAX_QUESTIONS).optional()
+  answers: z.array(AnswerSchema).min(1).max(MAX_SHEET_QUESTIONS).optional()
 })
 export type AssignPageInput = z.input<typeof AssignPageInputSchema>
 
@@ -39,7 +39,7 @@ export type ResolveConflictInput = z.infer<typeof ResolveConflictInputSchema>
 
 export const OverrideAnswerInputSchema = z.object({
   resultId: IdSchema,
-  q: z.number().int().min(0).max(MAX_QUESTIONS - 1),
+  q: z.number().int().min(0).max(MAX_SHEET_QUESTIONS - 1),
   /** `{ choice }` sets the override (null = blank); `null` removes it and restores the detection. */
   override: z.object({ choice: AnswerSchema, note: z.string().trim().max(200).optional() }).nullable()
 })

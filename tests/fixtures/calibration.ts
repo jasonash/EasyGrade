@@ -8,7 +8,7 @@
  * regression test that runs the real scans through the pipeline.
  */
 
-export type Letter = 'A' | 'B' | 'C' | 'D' | 'E'
+export type Letter = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H'
 export type RowOutcome = Letter | 'blank' | 'multiple'
 
 export interface RowExpectation {

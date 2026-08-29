@@ -37,7 +37,11 @@ export function syntheticTest(layoutVersion = 1): Test {
     code: SYN_TEST_CODE,
     title: CLEAN_TEST.title,
     instructions: CLEAN_TEST.instructions,
+    kind: 'standard',
     status: 'finalized',
+    defaultChoiceCount: null,
+    linkUrl: null,
+    attachment: null,
     layoutVersion,
     layout: syntheticLayout(),
     finalizedAt: now,
@@ -48,7 +52,9 @@ export function syntheticTest(layoutVersion = 1): Test {
       stem: q.stem,
       choices: fixtureChoices(q.choiceCount),
       correctChoice: q.key,
-      points: 1
+      points: 1,
+      labelStyle: 'letters' as const,
+      countOverridden: false
     })),
     resultCount: 0,
     createdAt: now,

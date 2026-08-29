@@ -16,7 +16,8 @@ import type {
   TestCopyInput,
   TestCreateInput,
   TestKeyUpdate,
-  TestUpdateInput
+  TestUpdateInput,
+  AnswerSheetUpdateInput
 } from '@shared/types'
 import { ROSTER_TEMPLATE_FILENAME } from '@shared/roster-import'
 import type { Services } from '../services'
@@ -83,6 +84,9 @@ export function registerIpcHandlers(services: () => Services, backupHooks: Backu
   handle<[number], ReturnType<Tests['get']>>(IPC.tests.get, (id) => services().tests.get(id))
   handle<[TestCreateInput], ReturnType<Tests['create']>>(IPC.tests.create, (input) => services().tests.create(input))
   handle<[TestUpdateInput], ReturnType<Tests['update']>>(IPC.tests.update, (input) => services().tests.update(input))
+  handle<[AnswerSheetUpdateInput], ReturnType<Tests['updateAnswerSheet']>>(IPC.tests.updateAnswerSheet, (input) =>
+    services().tests.updateAnswerSheet(input)
+  )
   handle<[TestKeyUpdate], ReturnType<Tests['updateKey']>>(IPC.tests.updateKey, (input) => services().tests.updateKey(input))
   handle<[number], ReturnType<Tests['finalize']>>(IPC.tests.finalize, (id) => services().tests.finalize(id))
   handle<[number], ReturnType<Tests['unlock']>>(IPC.tests.unlock, (id) => services().tests.unlock(id))

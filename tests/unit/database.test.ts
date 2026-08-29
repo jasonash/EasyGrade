@@ -15,7 +15,7 @@ describe('database', () => {
 
   it('applies migrations once and records them', () => {
     const rows = db.prepare('SELECT version FROM schema_migrations ORDER BY version').all() as { version: number }[]
-    expect(rows.map((r) => r.version)).toEqual([1, 2, 3])
+    expect(rows.map((r) => r.version)).toEqual([1, 2, 3, 4])
     const tables = db
       .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`)
       .all() as { name: string }[]
