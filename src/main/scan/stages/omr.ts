@@ -7,6 +7,9 @@ import {
   DISC_RADIUS_FACTOR,
   FULL_CONFIDENCE_FILL,
   INK_REF_HALF_SIZE,
+  LETTER_BASELINE_CAP,
+  LETTER_BASELINE_MIN_ROWS,
+  LETTER_BASELINE_PERCENTILE,
   MIN_INK_SPAN,
   PAPER_STRIP_HALF_HEIGHT,
   PAPER_STRIP_X0,
@@ -43,8 +46,54 @@ export function pageReferences(canonical: GrayImage): PageReferences {
   return { ink, usable: paper - ink >= MIN_INK_SPAN }
 }
 
-/** Normalized darkness of every bubble, row by row: 0 = paper, 1 = ink. */
+/**
+ * Darkness of every bubble with the printed letter's share removed, row by
+ * row: 0 = an empty bubble, 1 = ink. This is what classification uses.
+ */
 export function sampleFills(canonical: GrayImage, layout: SheetLayout, refs: PageReferences): number[][] {
+  const raw = sampleRawFills(canonical, layout, refs)
+  return normalizeFills(raw, letterBaselines(raw))
+}
+
+/**
+ * Empty-bubble darkness per choice column, estimated from the page: a low
+ * percentile of that column's fills across every row that has the column.
+ * Works because far fewer than most rows are filled at any one letter; the
+ * cap protects the rare column where they are.
+ */
+export function letterBaselines(rawFills: number[][]): number[] {
+  const columns = rawFills.reduce((max, row) => Math.max(max, row.length), 0)
+  const baselines: number[] = []
+  for (let c = 0; c < columns; c++) {
+    const values: number[] = []
+    for (const row of rawFills) {
+      const fill = row[c]
+      if (fill !== undefined) values.push(fill)
+    }
+    values.sort((a, b) => a - b)
+    if (values.length === 0) {
+      baselines.push(0)
+      continue
+    }
+    const index = values.length < LETTER_BASELINE_MIN_ROWS ? 0 : Math.floor(LETTER_BASELINE_PERCENTILE * (values.length - 1))
+    baselines.push(Math.min(LETTER_BASELINE_CAP, values[index] ?? 0))
+  }
+  return baselines
+}
+
+/** Rescale so the baseline reads 0 and ink still reads 1. */
+export function normalizeFills(rawFills: number[][], baselines: number[]): number[][] {
+  return rawFills.map((row) =>
+    row.map((fill, c) => {
+      const base = baselines[c] ?? 0
+      const value = base >= 1 ? 0 : (fill - base) / (1 - base)
+      return Math.round(Math.min(1, Math.max(0, value)) * 1000) / 1000
+    })
+  )
+}
+
+/** Normalized darkness of every bubble before the letter baseline is removed: 0 = paper, 1 = ink. */
+export function sampleRawFills(canonical: GrayImage, layout: SheetLayout, refs: PageReferences): number[][] {
   const radius = layout.bubbleRadius * CANONICAL_SCALE * DISC_RADIUS_FACTOR
   return layout.choiceCounts.map((count, q) => {
     const rowY = (layout.rowY[q] ?? 0) * CANONICAL_SCALE

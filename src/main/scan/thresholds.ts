@@ -52,6 +52,20 @@ export const T_SECOND = 0.22
 /** Darkness at or above which a filled bubble earns full confidence (pencil rarely exceeds 0.6). */
 export const FULL_CONFIDENCE_FILL = 0.6
 
+/**
+ * Printed bubble letters. Since 2026-08-29 every bubble carries a gray
+ * letter, and on paper an empty bubble reads 0.08-0.17 depending on the
+ * glyph (B is the densest), printer, and scanner. The reader estimates each
+ * letter column's empty level from the page itself (a low percentile of
+ * that column's fills across the rows) and subtracts it before classifying.
+ * Sheets printed without letters get a baseline near zero and are unchanged.
+ */
+export const LETTER_BASELINE_PERCENTILE = 0.2
+/** Columns with fewer rows than this use the minimum instead of the percentile. */
+export const LETTER_BASELINE_MIN_ROWS = 5
+/** Never subtract more than this; keeps a column where nearly every row is filled from erasing real marks. */
+export const LETTER_BASELINE_CAP = 0.25
+
 /** Rows with confidence below this get a crop even when classified filled. */
 export const LOW_CONFIDENCE = 0.5
 

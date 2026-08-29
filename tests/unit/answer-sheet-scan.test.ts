@@ -1,8 +1,12 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { rotate } from '../../src/main/scan/image'
 import { processPage } from '../../src/main/scan/pipeline'
 import { rasterize, type RasterPage } from '../../src/main/scan/stages/rasterize'
-import { T_BLANK } from '../../src/main/scan/thresholds'
+import type { GrayImage } from '../../src/main/scan/image'
+import { letterBaselines, pageReferences, sampleRawFills } from '../../src/main/scan/stages/omr'
+import { LOW_CONFIDENCE, T_BLANK } from '../../src/main/scan/thresholds'
 import { PdfService } from '../../src/main/services/pdf.service'
 import { AppError } from '../../src/main/services/errors'
 import { AS_NUMBER_GUTTER, AS_ROW_PITCH, buildAnswerSheetLayout, type SheetLayout } from '../../src/shared/layout'
@@ -119,6 +123,36 @@ describe('answer-sheet scanning', () => {
     expect(result.qr?.payload.studentCode).toBeNull()
     expect(result.bucket).toBe('needs_assignment')
     expect(result.answers?.map((r) => r.choice)).toEqual(key(sheet.test))
+  })
+
+  const realScan = join(__dirname, '..', 'fixtures', 'real', 'scansnap_answer_sheet_72.pdf')
+  it.skipIf(!existsSync(realScan))('reads the ScanSnap scan of the printed 72-question sheet (2026-08-29)', async () => {
+    // Printed from EasyGrade-answer-sheet-scan-test.pdf, filled in pencil by Jason: A B C D E D C B A then a blank row,
+    // four times; 41 to 58 the same run twice; 59 double-marked A and B; 60 a light B; 61 to 72 alternating T F.
+    const pages = await rasterize(readFileSync(realScan), 'application/pdf')
+    const { result, canonical } = await processPage({ pageIndex: 0, image: (pages[0] as RasterPage).image }, context(seventyTwo.layout))
+    expect(result.qr?.payload).toEqual({ testCode: SHEET_CODE, studentCode: 'GHJKMN', layoutVersion: 1 })
+    expect(result.alignment.quality).toBe('good')
+    expect(result.bucket).toBe('graded')
+    const run = ['A', 'B', 'C', 'D', 'E', 'D', 'C', 'B', 'A']
+    const expected: string[] = []
+    for (let block = 0; block < 4; block++) expected.push(...run, 'blank')
+    expected.push(...run, ...run, 'multiple', 'B')
+    for (let i = 0; i < 6; i++) expected.push('T', 'F')
+    expect(expected).toHaveLength(72)
+    const read = (result.answers ?? []).map((row, q) =>
+      row.state === 'filled' ? (q >= 60 ? ['T', 'F'][row.choice ?? 0] : ['A', 'B', 'C', 'D', 'E'][row.choice ?? 0]) : row.state
+    )
+    expect(read).toEqual(expected)
+    // On paper the printed letters read 0.11 to 0.15 before calibration; the baseline takes them out.
+    const baselines = letterBaselines(sampleRawFills(canonical as GrayImage, seventyTwo.layout, pageReferences(canonical as GrayImage)))
+    expect(Math.min(...baselines)).toBeGreaterThan(0.08)
+    expect(Math.max(...baselines)).toBeLessThan(0.2)
+    const filled = (result.answers ?? []).filter((r) => r.state === 'filled')
+    expect(filled.every((r) => r.confidence >= LOW_CONFIDENCE)).toBe(true)
+    // The page flag only reflects the deliberate blanks and the double mark; every filled row is confident.
+    expect(result.flags).toEqual(['low_confidence'])
+    expect((result.answers ?? []).filter((r) => r.state !== 'filled')).toHaveLength(5)
   })
 
   it('refuses to print when the stored layout no longer matches the questions', async () => {
