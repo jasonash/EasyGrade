@@ -193,7 +193,7 @@ describe('BackupService', () => {
 
     const manifest = JSON.parse(readFileSync(join(backupDir, 'manifest.json'), 'utf8')) as Record<string, unknown>
     expect(manifest.machineName).toBe('test-machine')
-    expect(manifest.schemaVersion).toBe(3)
+    expect(manifest.schemaVersion).toBe(4)
     expect(manifest.counts).toMatchObject({ results: 2, scanPages: 3 })
 
     const second = svc.create(new Date('2026-08-25T11:00:00Z'))

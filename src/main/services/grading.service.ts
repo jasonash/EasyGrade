@@ -258,6 +258,7 @@ export class GradingService {
       sectionName: test.sectionName,
       schoolYear: test.schoolYear,
       code: test.code,
+      kind: test.kind,
       title: test.title,
       status: test.status,
       questionCount: test.questions.length,

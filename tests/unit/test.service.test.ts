@@ -40,7 +40,16 @@ describe('TestService', () => {
     expect(test.sectionName).toBe('First Block')
     expect(test.schoolYear).toBe('2026-27')
     expect(test.questions).toEqual([
-      { id: expect.any(Number), position: 0, stem: '', choices: ['', '', '', ''], correctChoice: 0, points: 1 }
+      {
+        id: expect.any(Number),
+        position: 0,
+        stem: '',
+        choices: ['', '', '', ''],
+        correctChoice: 0,
+        points: 1,
+        labelStyle: 'letters',
+        countOverridden: false
+      }
     ])
   })
 

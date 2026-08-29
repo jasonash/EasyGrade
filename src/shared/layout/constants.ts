@@ -20,7 +20,15 @@ export const MAX_CHOICE_CHARS = 80
 export const MAX_TITLE_CHARS = 60
 export const MAX_INSTRUCTIONS_CHARS = 120
 
-export const CHOICE_LETTERS = ['A', 'B', 'C', 'D', 'E'] as const
+/** Answer-sheet-only tests: bubbles per question and the one-page question cap. */
+export const MIN_BUBBLES = 2
+export const MAX_BUBBLES = 8
+/** Largest question count any test can have (the answer-sheet grid at 4 columns x 24 rows). */
+export const MAX_SHEET_QUESTIONS = 96
+
+export const CHOICE_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] as const
+/** Labels for a true/false row (2 bubbles, label style true_false). */
+export const TRUE_FALSE_LETTERS = ['T', 'F'] as const
 
 /** Registration marks: three squares and one circle (bottom right) for orientation. */
 export const REG_MARK_SIZE = 20
@@ -90,6 +98,23 @@ export const BUBBLE_RADIUS = 8
 export const BUBBLE_SPACING = 24
 export const BUBBLE_X = [455, 479, 503, 527, 551] as const
 export const BUBBLE_Y_OFFSET = 14
+
+/**
+ * Answer-sheet-only grid (docs/ANSWER_SHEET_MODE.md). Questions run down
+ * each column like a scantron. The default bubble count sets the column
+ * width; rows with fewer bubbles draw fewer, left-aligned. The grid stays
+ * left of the 589..605 paper-white strip the reader samples.
+ */
+export const AS_GRID_LEFT = 50
+export const AS_GRID_RIGHT = 575
+export const AS_GRID_TOP = GRID_TOP + 10
+export const AS_ROW_PITCH = 22
+export const AS_ROWS_PER_COLUMN = 24
+export const AS_MAX_COLUMNS = 4
+export const AS_NUMBER_GUTTER = 24
+export const AS_BUBBLE_PITCH = 24
+export const AS_COLUMN_GAP = 14
+export const AS_NUMBER_FONT_SIZE = 9
 
 export function baseFontSize(questionCount: number): number {
   return questionCount <= 7 ? 11 : 10

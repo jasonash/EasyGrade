@@ -43,7 +43,8 @@ import type {
   TestCreateInput,
   TestKeyUpdate,
   TestSummary,
-  TestUpdateInput
+  TestUpdateInput,
+  AnswerSheetUpdateInput
 } from './types'
 
 /**
@@ -87,8 +88,10 @@ export interface EasyGradeApi {
     list: (sectionId?: number) => Promise<ApiResult<TestSummary[]>>
     get: (id: number) => Promise<ApiResult<Test>>
     create: (input: TestCreateInput) => Promise<ApiResult<Test>>
-    /** Draft text edits. Refused for finalized tests. */
+    /** Draft text edits. Refused for finalized tests and for answer sheets. */
     update: (input: TestUpdateInput) => Promise<ApiResult<Test>>
+    /** Answer-sheet edits. Drafts take everything; finalized sheets accept only the key and the link. */
+    updateAnswerSheet: (input: AnswerSheetUpdateInput) => Promise<ApiResult<Test>>
     /** Answer key only; allowed at any status. */
     updateKey: (input: TestKeyUpdate) => Promise<ApiResult<Test>>
     finalize: (id: number) => Promise<ApiResult<Test>>
@@ -201,6 +204,7 @@ export const IPC = {
     get: 'tests:get',
     create: 'tests:create',
     update: 'tests:update',
+    updateAnswerSheet: 'tests:updateAnswerSheet',
     updateKey: 'tests:updateKey',
     finalize: 'tests:finalize',
     unlock: 'tests:unlock',

@@ -36,6 +36,7 @@ const api: EasyGradeApi = {
     get: (id) => ipcRenderer.invoke(IPC.tests.get, id),
     create: (input) => ipcRenderer.invoke(IPC.tests.create, input),
     update: (input) => ipcRenderer.invoke(IPC.tests.update, input),
+    updateAnswerSheet: (input) => ipcRenderer.invoke(IPC.tests.updateAnswerSheet, input),
     updateKey: (input) => ipcRenderer.invoke(IPC.tests.updateKey, input),
     finalize: (id) => ipcRenderer.invoke(IPC.tests.finalize, id),
     unlock: (id) => ipcRenderer.invoke(IPC.tests.unlock, id),
