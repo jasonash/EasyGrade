@@ -16,6 +16,7 @@ interface TestRow {
   status: string
   default_choice_count: number | null
   link_url: string | null
+  total_points: number | null
   attachment_json: string | null
   layout_version: number
   layout_json: string | null
@@ -46,7 +47,7 @@ interface ChoiceRow {
 
 const SELECT = `
   SELECT t.id, t.section_id, s.name AS section_name, s.school_year, t.code, t.kind, t.title, t.instructions, t.status,
-    t.default_choice_count, t.link_url, t.attachment_json,
+    t.default_choice_count, t.link_url, t.total_points, t.attachment_json,
     t.layout_version, t.layout_json, t.finalized_at, t.last_printed_at, t.created_at, t.updated_at,
     (SELECT COUNT(*) FROM questions q WHERE q.test_id = t.id) AS question_count,
     (SELECT COUNT(*) FROM results r WHERE r.test_id = t.id) AS result_count,
@@ -88,6 +89,7 @@ function toSummary(row: TestRow): TestSummary {
     title: row.title,
     status: toStatus(row.status),
     questionCount: row.question_count,
+    totalPoints: row.total_points,
     layoutVersion: row.layout_version,
     lastPrintedAt: row.last_printed_at,
     resultCount: row.result_count,
@@ -123,6 +125,7 @@ export interface TestInsert {
   instructions: string
   defaultChoiceCount?: number | null
   linkUrl?: string | null
+  totalPoints?: number | null
   questions: QuestionInsert[]
 }
 
@@ -130,6 +133,7 @@ export interface TestPatch {
   title?: string
   instructions?: string
   linkUrl?: string | null
+  totalPoints?: number | null
   defaultChoiceCount?: number | null
   attachmentJson?: string | null
   status?: TestStatus
@@ -210,8 +214,8 @@ export class TestRepository {
   insert(input: TestInsert): Test {
     const ts = nowIso()
     const stmt = this.db.prepare(
-      `INSERT INTO tests (section_id, code, kind, title, instructions, default_choice_count, link_url, status, layout_version, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', 1, ?, ?)`
+      `INSERT INTO tests (section_id, code, kind, title, instructions, default_choice_count, link_url, total_points, status, layout_version, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', 1, ?, ?)`
     )
     const run = this.db.transaction((): number => {
       for (let attempt = 0; attempt < CODE_ATTEMPTS; attempt++) {
@@ -225,6 +229,7 @@ export class TestRepository {
             input.instructions,
             input.defaultChoiceCount ?? null,
             input.linkUrl ?? null,
+            input.totalPoints ?? null,
             ts,
             ts
           )
@@ -284,6 +289,7 @@ export class TestRepository {
     if (patch.title !== undefined) add('title', patch.title)
     if (patch.instructions !== undefined) add('instructions', patch.instructions)
     if (patch.linkUrl !== undefined) add('link_url', patch.linkUrl)
+    if (patch.totalPoints !== undefined) add('total_points', patch.totalPoints)
     if (patch.defaultChoiceCount !== undefined) add('default_choice_count', patch.defaultChoiceCount)
     if (patch.attachmentJson !== undefined) add('attachment_json', patch.attachmentJson)
     if (patch.status !== undefined) add('status', patch.status)

@@ -214,6 +214,8 @@ export interface GradeResult {
 export interface ScanPageDetail extends ScanPage {
   testTitle: string | null
   testCode: string | null
+  /** The test's gradebook worth, so lists can show points without loading the test. */
+  testTotalPoints: number | null
   studentName: string | null
   studentNumber: string | null
   sectionName: string | null

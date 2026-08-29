@@ -41,6 +41,7 @@ export function syntheticTest(layoutVersion = 1): Test {
     status: 'finalized',
     defaultChoiceCount: null,
     linkUrl: null,
+    totalPoints: null,
     attachment: null,
     layoutVersion,
     layout: syntheticLayout(),

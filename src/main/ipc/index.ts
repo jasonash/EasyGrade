@@ -17,6 +17,7 @@ import type {
   TestCopyInput,
   TestCreateInput,
   TestKeyUpdate,
+  TestTotalPointsUpdate,
   TestUpdateInput,
   AnswerSheetUpdateInput
 } from '@shared/types'
@@ -90,6 +91,9 @@ export function registerIpcHandlers(services: () => Services, backupHooks: Backu
     services().tests.updateAnswerSheet(input)
   )
   handle<[TestKeyUpdate], ReturnType<Tests['updateKey']>>(IPC.tests.updateKey, (input) => services().tests.updateKey(input))
+  handle<[TestTotalPointsUpdate], ReturnType<Tests['updateTotalPoints']>>(IPC.tests.updateTotalPoints, (input) =>
+    services().tests.updateTotalPoints(input)
+  )
   handle<[number], ReturnType<Tests['finalize']>>(IPC.tests.finalize, (id) => services().tests.finalize(id))
   handle<[number], ReturnType<Tests['unlock']>>(IPC.tests.unlock, (id) => services().tests.unlock(id))
   handle<[TestCopyInput], ReturnType<Tests['copy']>>(IPC.tests.copy, (input) => services().tests.copy(input))

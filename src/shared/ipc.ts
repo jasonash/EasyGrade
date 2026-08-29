@@ -42,6 +42,7 @@ import type {
   TestCopyInput,
   TestCreateInput,
   TestKeyUpdate,
+  TestTotalPointsUpdate,
   TestSummary,
   TestUpdateInput,
   AnswerSheetUpdateInput
@@ -94,6 +95,8 @@ export interface EasyGradeApi {
     updateAnswerSheet: (input: AnswerSheetUpdateInput) => Promise<ApiResult<Test>>
     /** Answer key only; allowed at any status. */
     updateKey: (input: TestKeyUpdate) => Promise<ApiResult<Test>>
+    /** Gradebook worth; allowed at any status (it is not part of the printed sheet). */
+    updateTotalPoints: (input: TestTotalPointsUpdate) => Promise<ApiResult<Test>>
     finalize: (id: number) => Promise<ApiResult<Test>>
     unlock: (id: number) => Promise<ApiResult<Test>>
     copy: (input: TestCopyInput) => Promise<ApiResult<Test>>
@@ -211,6 +214,7 @@ export const IPC = {
     update: 'tests:update',
     updateAnswerSheet: 'tests:updateAnswerSheet',
     updateKey: 'tests:updateKey',
+    updateTotalPoints: 'tests:updateTotalPoints',
     finalize: 'tests:finalize',
     unlock: 'tests:unlock',
     copy: 'tests:copy',

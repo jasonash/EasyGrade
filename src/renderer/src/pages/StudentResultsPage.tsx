@@ -7,6 +7,7 @@ import { gradingApi } from '@/lib/grading-api'
 import { describeError } from '@/lib/errors'
 import { formatShortDate } from '@/lib/format'
 import { formatPercent, percentOf } from '@/lib/grading'
+import { formatPoints, pointsEarned } from '@shared/points'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ClickableRow } from '@/components/common/ClickableRow'
 import { LinkButton } from '@/components/common/LinkButton'
@@ -45,6 +46,7 @@ export function StudentResultsPage(): JSX.Element {
   if (loading || !view) return <Skeleton variant="rounded" height={300} />
 
   const { student, rows } = view
+  const anyPoints = rows.some((r) => r.test.totalPoints !== null)
   const percents = rows.map((r) => percentOf(r.result.correctCount, r.result.possibleCount)).filter((p): p is number => p !== null)
   const average = percents.length > 0 ? percents.reduce((a, b) => a + b, 0) / percents.length : null
 
@@ -69,6 +71,7 @@ export function StudentResultsPage(): JSX.Element {
                 <TableCell>Test</TableCell>
                 <TableCell align="right">Score</TableCell>
                 <TableCell align="right">%</TableCell>
+                {anyPoints ? <TableCell align="right">Points</TableCell> : null}
                 <TableCell>Graded</TableCell>
                 <TableCell>Flags</TableCell>
                 <TableCell align="center">Reviewed</TableCell>
@@ -92,6 +95,20 @@ export function StudentResultsPage(): JSX.Element {
                     {row.result.correctCount}/{row.result.possibleCount}
                   </TableCell>
                   <TableCell align="right">{formatPercent(percentOf(row.result.correctCount, row.result.possibleCount))}</TableCell>
+                  {anyPoints ? (
+                    <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                      {row.test.totalPoints === null ? (
+                        ''
+                      ) : (
+                        <>
+                          {formatPoints(pointsEarned(row.result.correctCount, row.result.possibleCount, row.test.totalPoints) ?? 0)}
+                          <Typography component="span" variant="caption" color="text.secondary">
+                            {` / ${formatPoints(row.test.totalPoints)}`}
+                          </Typography>
+                        </>
+                      )}
+                    </TableCell>
+                  ) : null}
                   <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatShortDate(row.result.gradedAt)}</TableCell>
                   <TableCell>
                     <FlagChips

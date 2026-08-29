@@ -10,6 +10,7 @@ import { useUiStore } from '@/stores/ui.store'
 import { describeError } from '@/lib/errors'
 import { formatShortDate } from '@/lib/format'
 import { BUCKETS, describePage, formatPercent, percentOf } from '@/lib/grading'
+import { pointsLabel } from '@shared/points'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ClickableRow } from '@/components/common/ClickableRow'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
@@ -271,6 +272,11 @@ function PageRowView({ page, graded, onOpen }: { page: ScanPageDetail; graded: b
       {graded ? (
         <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
           {result ? `${result.correctCount}/${result.possibleCount} · ${formatPercent(percentOf(result.correctCount, result.possibleCount))}` : ''}
+          {result && page.testTotalPoints !== null ? (
+            <Typography component="span" variant="body2" color="text.secondary">
+              {` · ${pointsLabel(result.correctCount, result.possibleCount, page.testTotalPoints) ?? ''}`}
+            </Typography>
+          ) : null}
         </TableCell>
       ) : null}
       <TableCell>

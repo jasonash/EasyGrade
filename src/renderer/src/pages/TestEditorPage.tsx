@@ -23,6 +23,7 @@ import { AiQuestionsDialog } from '@/components/editor/AiQuestionsDialog'
 import { QuestionCard, type EditorQuestion } from '@/components/editor/QuestionCard'
 import { SheetPreview } from '@/components/editor/SheetPreview'
 import { PrintDialog } from '@/components/print/PrintDialog'
+import { PointsField } from '@/components/editor/PointsField'
 
 interface EditorState {
   title: string
@@ -305,8 +306,8 @@ export function TestEditorPage(): JSX.Element {
 
       {readOnly ? (
         <Alert severity="info" sx={{ mb: 2 }}>
-          Text is locked. The answer key stays editable
-          {test.resultCount > 0 ? `; changing it regrades ${test.resultCount} existing results` : ''}. Unlock to edit
+          Text is locked. The answer key and the points it is worth stay editable
+          {test.resultCount > 0 ? `; changing the key regrades ${test.resultCount} existing results` : ''}. Unlock to edit
           questions; printed sheets will need to be reprinted after you finalize again.
         </Alert>
       ) : null}
@@ -324,20 +325,23 @@ export function TestEditorPage(): JSX.Element {
       {/* The preview is live feedback while typing, so it stays beside the questions from the md breakpoint (the app's 1024 minimum) up. */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 340px', lg: 'minmax(0, 7fr) minmax(0, 5fr)' }, gap: 3, alignItems: 'start' }}>
         <Stack spacing={2}>
-          <TextField
-            label="Instructions"
-            value={state.instructions}
-            onChange={(e) => edit({ ...state, instructions: e.target.value.replace(/[\r\n]+/g, ' ').slice(0, MAX_INSTRUCTIONS_CHARS) })}
-            // The stock text is selected on focus so typing replaces it; custom text keeps normal click-to-place-cursor editing.
-            onFocus={(e) => {
-              if (!readOnly && state.instructions === DEFAULT_INSTRUCTIONS) e.target.select()
-            }}
-            size="small"
-            fullWidth
-            placeholder={DEFAULT_INSTRUCTIONS}
-            helperText={`${state.instructions.length}/${MAX_INSTRUCTIONS_CHARS}. Optional, printed above the questions.`}
-            slotProps={{ input: { readOnly } }}
-          />
+          <Stack direction="row" spacing={2} alignItems="flex-start">
+            <TextField
+              label="Instructions"
+              value={state.instructions}
+              onChange={(e) => edit({ ...state, instructions: e.target.value.replace(/[\r\n]+/g, ' ').slice(0, MAX_INSTRUCTIONS_CHARS) })}
+              // The stock text is selected on focus so typing replaces it; custom text keeps normal click-to-place-cursor editing.
+              onFocus={(e) => {
+                if (!readOnly && state.instructions === DEFAULT_INSTRUCTIONS) e.target.select()
+              }}
+              size="small"
+              fullWidth
+              placeholder={DEFAULT_INSTRUCTIONS}
+              helperText={`${state.instructions.length}/${MAX_INSTRUCTIONS_CHARS}. Optional, printed above the questions.`}
+              slotProps={{ input: { readOnly } }}
+            />
+            <PointsField test={test} onChanged={(updated) => setTest((prev) => (prev ? { ...prev, totalPoints: updated.totalPoints, updatedAt: updated.updatedAt } : updated))} />
+          </Stack>
 
           {state.questions.map((question, index) => (
             <QuestionCard

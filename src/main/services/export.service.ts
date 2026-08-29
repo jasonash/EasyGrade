@@ -1,6 +1,7 @@
 import type { CsvCell } from '@shared/csv'
 import { fileSlug, toCsv } from '@shared/csv'
 import { choiceLabel } from '@shared/layout'
+import { pointsEarned } from '@shared/points'
 import type { LabelStyle, QuestionFlag } from '@shared/schemas'
 import type { SectionRepository } from '../db/repositories/section.repo'
 import type { StudentRepository } from '../db/repositories/student.repo'
@@ -48,7 +49,10 @@ export class ExportService {
   testCsv(testId: number): CsvExport {
     const view = this.grading.resultsForTest(testId)
     const questionCount = view.questions.length
+    const totalPoints = view.test.totalPoints
     const header: CsvCell[] = ['Last name', 'First name', 'Student number', 'Status', 'Correct', 'Possible', 'Percent']
+    // Gradebook points only when the test is worth something; otherwise the columns would sit empty.
+    if (totalPoints !== null) header.push('Points', 'Out of')
     for (let q = 0; q < questionCount; q++) header.push(`Q${q + 1}`)
     header.push('Flags', 'Reviewed', 'Graded at')
 
@@ -64,6 +68,7 @@ export class ExportService {
         r.possibleCount,
         percent(r.correctCount, r.possibleCount)
       ]
+      if (totalPoints !== null) line.push(pointsEarned(r.correctCount, r.possibleCount, totalPoints), totalPoints)
       for (let q = 0; q < questionCount; q++) line.push(letter(r.finalAnswers[q], view.questions[q]?.labelStyle))
       line.push(
         r.flags.map((f) => `Q${f.q + 1} ${FLAG_WORDS[f.kind]}`).join('; '),
@@ -74,12 +79,14 @@ export class ExportService {
     }
     for (const student of view.missing) {
       const line: CsvCell[] = [student.lastName, student.firstName, student.studentNumber ?? '', 'missing', null, null, null]
+      if (totalPoints !== null) line.push(null, totalPoints)
       for (let q = 0; q < questionCount; q++) line.push('')
       line.push('', '', '')
       rows.push(line)
     }
     // Key row at the bottom so the sheet is self-describing.
     const keyLine: CsvCell[] = ['Answer key', '', '', '', '', '', '']
+    if (totalPoints !== null) keyLine.push('', '')
     for (const q of view.questions) keyLine.push(letter(q.correctChoice, q.labelStyle))
     keyLine.push('', '', '')
     rows.push(keyLine)

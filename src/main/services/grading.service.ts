@@ -267,6 +267,7 @@ export class GradingService {
       title: test.title,
       status: test.status,
       questionCount: test.questions.length,
+      totalPoints: test.totalPoints,
       layoutVersion: test.layoutVersion,
       lastPrintedAt: test.lastPrintedAt,
       resultCount: test.resultCount,

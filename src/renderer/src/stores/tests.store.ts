@@ -1,5 +1,14 @@
 import { create } from 'zustand'
-import type { AnswerSheetUpdateInput, Test, TestCopyInput, TestCreateInput, TestKeyUpdate, TestSummary, TestUpdateInput } from '@shared/types'
+import type {
+  AnswerSheetUpdateInput,
+  Test,
+  TestCopyInput,
+  TestCreateInput,
+  TestKeyUpdate,
+  TestSummary,
+  TestTotalPointsUpdate,
+  TestUpdateInput
+} from '@shared/types'
 import { api, unwrap } from '@/api'
 import { useSectionsStore } from './sections.store'
 
@@ -12,6 +21,7 @@ interface TestsState {
   update: (input: TestUpdateInput) => Promise<Test>
   updateAnswerSheet: (input: AnswerSheetUpdateInput) => Promise<Test>
   updateKey: (input: TestKeyUpdate) => Promise<Test>
+  updateTotalPoints: (input: TestTotalPointsUpdate) => Promise<Test>
   finalize: (id: number) => Promise<Test>
   unlock: (id: number) => Promise<Test>
   copy: (input: TestCopyInput) => Promise<Test>
@@ -63,6 +73,11 @@ export const useTestsStore = create<TestsState>((set) => ({
     return test
   },
   updateKey: (input) => unwrap(api.tests.updateKey(input)),
+  updateTotalPoints: async (input) => {
+    const test = await unwrap(api.tests.updateTotalPoints(input))
+    set((state) => ({ tests: state.tests.map((t) => (t.id === test.id ? { ...t, totalPoints: test.totalPoints, updatedAt: test.updatedAt } : t)) }))
+    return test
+  },
   finalize: async (id) => {
     const test = await unwrap(api.tests.finalize(id))
     await useTestsStore.getState().load()
