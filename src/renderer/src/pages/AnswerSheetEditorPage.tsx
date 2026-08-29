@@ -215,6 +215,7 @@ export function AnswerSheetEditorPage(): JSX.Element {
 
   /** Apply a change and schedule the autosave. Finalized sheets only ever send the key and the link this way. */
   const edit = (next: EditorState): void => {
+    stateRef.current = next
     setState(next)
     dirtyRef.current = true
     setSaveState('dirty')
@@ -232,7 +233,10 @@ export function AnswerSheetEditorPage(): JSX.Element {
       edit({ ...state, rows })
       return
     }
-    setState({ ...state, rows })
+    const next = { ...state, rows }
+    // save() reads the ref, and the re-render that refreshes it has not happened yet.
+    stateRef.current = next
+    setState(next)
     dirtyRef.current = true
     if (timerRef.current !== null) window.clearTimeout(timerRef.current)
     const saved = await save()
