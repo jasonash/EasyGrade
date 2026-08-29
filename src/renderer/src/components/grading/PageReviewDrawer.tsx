@@ -9,6 +9,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore'
 import NavigateNextIcon from '@mui/icons-material/NavigateNext'
 import AssessmentIcon from '@mui/icons-material/Assessment'
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import type { ScanPageDetail, Test } from '@shared/types'
 import { api, unwrap } from '@/api'
 import { useScanStore } from '@/stores/scan.store'
@@ -31,6 +32,12 @@ interface Props {
    * finishing a page moves on to the next one instead of staying put.
    */
   pageIds?: number[]
+  /**
+   * The pages in `pageIds` whose result still needs a review. "Mark reviewed,
+   * next" moves to the next of these (wrapping around) rather than to
+   * whatever page happens to follow, and says so when none are left.
+   */
+  toReviewIds?: number[]
   onNavigate?: (pageId: number) => void
   onClose: () => void
   /** Anything changed (override, assignment, discard); lists behind the drawer should refresh. */
@@ -46,7 +53,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
  * Right-hand drawer for one scanned page. Graded pages show the answer rows
  * with override controls; everything else shows the assignment panel.
  */
-export function PageReviewDrawer({ pageId, pageIds, onNavigate, onClose, onChanged }: Props): JSX.Element {
+export function PageReviewDrawer({ pageId, pageIds, toReviewIds, onNavigate, onClose, onChanged }: Props): JSX.Element {
   const getPage = useScanStore((s) => s.getPage)
   const discardPage = useScanStore((s) => s.discardPage)
   const toast = useUiStore((s) => s.toast)
@@ -61,6 +68,8 @@ export function PageReviewDrawer({ pageId, pageIds, onNavigate, onClose, onChang
   const [busyQ, setBusyQ] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const [discardOpen, setDiscardOpen] = useState(false)
+  /** Set when "Mark reviewed" just finished the last page that needed a review. */
+  const [finishedReviewing, setFinishedReviewing] = useState(false)
 
   const load = useCallback(
     async (id: number): Promise<void> => {
@@ -100,6 +109,7 @@ export function PageReviewDrawer({ pageId, pageIds, onNavigate, onClose, onChang
     let cancelled = false
     setLoading(true)
     setReassign(false)
+    setFinishedReviewing(false)
     void load(pageId)
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -120,6 +130,21 @@ export function PageReviewDrawer({ pageId, pageIds, onNavigate, onClose, onChang
   const prevId = index > 0 ? (pageIds?.[index - 1] ?? null) : null
   const nextId = pageIds && index >= 0 && index < pageIds.length - 1 ? (pageIds[index + 1] ?? null) : null
   const canStep = pageIds !== undefined && onNavigate !== undefined && index >= 0
+
+  /**
+   * The next page after this one that still needs a review, wrapping around
+   * to the start of the list, so it does not matter which flagged page the
+   * teacher opened first. Null when this is the last one.
+   */
+  const nextReviewId = useMemo((): number | null => {
+    if (!canStep || !pageIds || !toReviewIds) return null
+    const pending = new Set(toReviewIds)
+    for (let step = 1; step < pageIds.length; step++) {
+      const candidate = pageIds[(index + step) % pageIds.length]
+      if (candidate !== undefined && candidate !== pageId && pending.has(candidate)) return candidate
+    }
+    return null
+  }, [canStep, pageIds, toReviewIds, index, pageId])
 
   /**
    * After a page is finished (assigned, resolved, discarded, marked reviewed)
@@ -168,7 +193,7 @@ export function PageReviewDrawer({ pageId, pageIds, onNavigate, onClose, onChang
 
   const toggleReviewed = (): void => {
     if (!result) return
-    const next = nextId
+    const next = nextReviewId
     const marking = !result.reviewed
     setBusy(true)
     void gradingApi
@@ -176,7 +201,15 @@ export function PageReviewDrawer({ pageId, pageIds, onNavigate, onClose, onChang
       .then((updated) => {
         setPage((prev) => (prev ? { ...prev, result: updated } : prev))
         onChanged()
-        if (marking) advanceFrom(next)
+        if (!marking) {
+          setFinishedReviewing(false)
+        } else if (next !== null && onNavigate) {
+          onNavigate(next)
+        } else {
+          // Nothing else needs a look: say so instead of silently closing or
+          // stepping to a page that was already reviewed.
+          setFinishedReviewing(canStep)
+        }
       })
       .catch((err: unknown) => toast('error', describeError(err)))
       .finally(() => setBusy(false))
@@ -336,30 +369,36 @@ export function PageReviewDrawer({ pageId, pageIds, onNavigate, onClose, onChang
                 <>
                   <AnswerRows questions={test.questions} result={result} page={page} busyQ={busyQ} onOverride={onOverride} />
                   {/* Same order as the assign footer (destructive text, secondary, primary) and pinned so a long sheet never scrolls it away. */}
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    justifyContent="flex-end"
-                    flexWrap="wrap"
-                    useFlexGap
-                    sx={{ position: 'sticky', bottom: 0, mt: 2, py: 1.5, bgcolor: 'background.paper', borderTop: 1, borderColor: 'divider' }}
-                  >
-                    <Button color="error" startIcon={<DeleteOutlineIcon />} onClick={() => setDiscardOpen(true)} disabled={busy}>
-                      Discard
-                    </Button>
-                    <Button variant="outlined" startIcon={<SwapHorizIcon />} onClick={() => setReassign(true)} disabled={busy}>
-                      Reassign
-                    </Button>
-                    <Button
-                      variant={result.reviewed ? 'outlined' : 'contained'}
-                      color={result.reviewed ? 'success' : 'primary'}
-                      startIcon={result.reviewed ? <CheckCircleIcon /> : <CheckCircleOutlineIcon />}
-                      onClick={toggleReviewed}
-                      disabled={busy}
-                    >
-                      {result.reviewed ? 'Reviewed' : canStep && nextId !== null ? 'Mark reviewed, next' : 'Mark reviewed'}
-                    </Button>
-                  </Stack>
+                  <Box sx={{ position: 'sticky', bottom: 0, mt: 2, py: 1.5, bgcolor: 'background.paper', borderTop: 1, borderColor: 'divider' }}>
+                    {finishedReviewing && result.reviewed ? (
+                      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+                        <CheckCircleIcon color="success" fontSize="small" />
+                        <Typography variant="body2" sx={{ flexGrow: 1 }} role="status" aria-live="polite">
+                          That was the last one: every page in this list is reviewed.
+                        </Typography>
+                        <Button variant="contained" startIcon={<ArrowBackIcon />} onClick={onClose} sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
+                          Back to list
+                        </Button>
+                      </Stack>
+                    ) : null}
+                    <Stack direction="row" spacing={1} justifyContent="flex-end" flexWrap="wrap" useFlexGap>
+                      <Button color="error" startIcon={<DeleteOutlineIcon />} onClick={() => setDiscardOpen(true)} disabled={busy}>
+                        Discard
+                      </Button>
+                      <Button variant="outlined" startIcon={<SwapHorizIcon />} onClick={() => setReassign(true)} disabled={busy}>
+                        Reassign
+                      </Button>
+                      <Button
+                        variant={result.reviewed ? 'outlined' : 'contained'}
+                        color={result.reviewed ? 'success' : 'primary'}
+                        startIcon={result.reviewed ? <CheckCircleIcon /> : <CheckCircleOutlineIcon />}
+                        onClick={toggleReviewed}
+                        disabled={busy}
+                      >
+                        {result.reviewed ? 'Reviewed' : nextReviewId !== null ? 'Mark reviewed, next' : 'Mark reviewed'}
+                      </Button>
+                    </Stack>
+                  </Box>
                 </>
               ) : (
                 <AssignPanel

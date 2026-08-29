@@ -133,6 +133,7 @@ export function TestResultsPage(): JSX.Element {
     return rows
   }, [rows, filter])
   const shownPageIds = useMemo(() => shown.flatMap((r) => (r.page ? [r.page.id] : [])), [shown])
+  const toReviewIds = useMemo(() => shown.flatMap((r) => (r.page && !r.result.reviewed ? [r.page.id] : [])), [shown])
 
   if (testId === null) return <Box />
   if (loading || !view) return <Skeleton variant="rounded" height={400} />
@@ -342,7 +343,7 @@ export function TestResultsPage(): JSX.Element {
         </Box>
       ) : null}
 
-      <PageReviewDrawer pageId={reviewId} pageIds={shownPageIds} onNavigate={setReviewId} onClose={() => setReviewId(null)} onChanged={refresh} />
+      <PageReviewDrawer pageId={reviewId} pageIds={shownPageIds} toReviewIds={toReviewIds} onNavigate={setReviewId} onClose={() => setReviewId(null)} onChanged={refresh} />
 
       <PrintDialog
         open={printOpen}
