@@ -1,5 +1,5 @@
 import type { JSX, KeyboardEvent } from 'react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Box, Button, Chip, Drawer, IconButton, Skeleton, Stack, Tooltip, Typography } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
@@ -81,6 +81,15 @@ export function PageReviewDrawer({ pageId, pageIds, onNavigate, onClose, onChang
     [getPage, toast]
   )
 
+  // Parents pass `onClose` inline, so its identity changes whenever they
+  // re-render (which `onChanged` makes them do after every override). The
+  // load effect must not depend on it: reloading replaces the answer rows
+  // with the skeleton and throws the teacher back to the top of the list.
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
+
   useEffect(() => {
     if (pageId === null) {
       setPage(null)
@@ -95,7 +104,7 @@ export function PageReviewDrawer({ pageId, pageIds, onNavigate, onClose, onChang
       .catch((err: unknown) => {
         if (!cancelled) {
           toast('error', describeError(err))
-          onClose()
+          onCloseRef.current()
         }
       })
       .finally(() => {
@@ -104,7 +113,7 @@ export function PageReviewDrawer({ pageId, pageIds, onNavigate, onClose, onChang
     return () => {
       cancelled = true
     }
-  }, [pageId, load, toast, onClose])
+  }, [pageId, load, toast])
 
   // Position in the list, when there is one.
   const index = pageId !== null && pageIds ? pageIds.indexOf(pageId) : -1
