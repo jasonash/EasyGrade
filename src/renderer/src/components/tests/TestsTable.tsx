@@ -1,7 +1,7 @@
 import type { JSX } from 'react'
 import { ClickableRow } from '@/components/common/ClickableRow'
 import { useState, type MouseEvent } from 'react'
-import { Chip, IconButton, Menu, MenuItem, Paper, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material'
+import { Chip, IconButton, Menu, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import type { TestSummary } from '@shared/types'
 import { formatShortDate } from '@/lib/format'
@@ -48,7 +48,10 @@ export function TestsTable({ tests, showSection = false, onOpen, onResults, onCo
                 label={`${test.status === 'finalized' ? 'Results for' : 'Open'} ${test.title}`}
               >
                 <TableCell>
-                  <Typography>{test.title}</Typography>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Typography>{test.title}</Typography>
+                    {test.kind === 'answer_sheet' ? <Chip size="small" variant="outlined" label="Answer sheet" sx={{ height: 20 }} /> : null}
+                  </Stack>
                 </TableCell>
                 {showSection ? (
                   <TableCell>

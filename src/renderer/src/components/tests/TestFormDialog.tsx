@@ -18,10 +18,14 @@ import {
   Select,
   Stack,
   Switch,
-  TextField
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography
 } from '@mui/material'
-import type { Section } from '@shared/types'
-import { MAX_TITLE_CHARS } from '@shared/layout'
+import type { Section, TestKind } from '@shared/types'
+import { MAX_BUBBLES, MAX_TITLE_CHARS, MIN_BUBBLES, answerSheetCapacity } from '@shared/layout'
+import { DEFAULT_ANSWER_SHEET_QUESTIONS, DEFAULT_BUBBLE_COUNT } from '@shared/schemas'
 
 export interface TestFormValues {
   /** One section for a new test; one or more targets for a copy. */
@@ -29,6 +33,16 @@ export interface TestFormValues {
   title: string
   /** Copy only: finalize every copy right away so it can be printed. */
   finalizeNow: boolean
+  /** Create only. */
+  kind: TestKind
+  /** Create only, answer sheets: bubbles per question and how many rows to start with. */
+  defaultChoiceCount: number
+  questionCount: number
+}
+
+const KIND_HELP: Record<TestKind, string> = {
+  standard: 'Questions and choices are printed on the sheet, up to 10 questions.',
+  answer_sheet: 'Bubbles only. The test itself lives in a document or PDF; up to 96 questions.'
 }
 
 interface Props {
@@ -64,7 +78,11 @@ export function TestFormDialog({
   const [target, setTarget] = useState<number | ''>('')
   const [chosen, setChosen] = useState<Set<number>>(new Set())
   const [finalizeNow, setFinalizeNow] = useState(false)
+  const [kind, setKind] = useState<TestKind>('standard')
+  const [bubbles, setBubbles] = useState(DEFAULT_BUBBLE_COUNT)
+  const [questionCount, setQuestionCount] = useState(DEFAULT_ANSWER_SHEET_QUESTIONS)
   const [busy, setBusy] = useState(false)
+  const capacity = answerSheetCapacity(bubbles).capacity
 
   useEffect(() => {
     if (!open) return
@@ -73,6 +91,9 @@ export function TestFormDialog({
     setTarget(sectionId ?? first?.id ?? '')
     setChosen(new Set(sectionId !== null ? [sectionId] : []))
     setFinalizeNow(false)
+    setKind('standard')
+    setBubbles(DEFAULT_BUBBLE_COUNT)
+    setQuestionCount(DEFAULT_ANSWER_SHEET_QUESTIONS)
     setBusy(false)
   }, [open, initialTitle, sectionId, sections])
 
@@ -83,7 +104,14 @@ export function TestFormDialog({
     if (!canSubmit) return
     setBusy(true)
     try {
-      await onSubmit({ sectionIds, title: title.trim(), finalizeNow: mode === 'copy' && sourceFinalized && finalizeNow })
+      await onSubmit({
+        sectionIds,
+        title: title.trim(),
+        finalizeNow: mode === 'copy' && sourceFinalized && finalizeNow,
+        kind,
+        defaultChoiceCount: bubbles,
+        questionCount: Math.min(questionCount, capacity)
+      })
     } finally {
       setBusy(false)
     }
@@ -110,6 +138,27 @@ export function TestFormDialog({
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             {description ? <DialogContentText>{description}</DialogContentText> : null}
+            {mode === 'create' ? (
+              <Stack spacing={0.5}>
+                <ToggleButtonGroup
+                  exclusive
+                  fullWidth
+                  size="small"
+                  color="primary"
+                  value={kind}
+                  onChange={(_, next: TestKind | null) => {
+                    if (next) setKind(next)
+                  }}
+                  aria-label="Test type"
+                >
+                  <ToggleButton value="standard">Standard test</ToggleButton>
+                  <ToggleButton value="answer_sheet">Answer sheet only</ToggleButton>
+                </ToggleButtonGroup>
+                <Typography variant="caption" color="text.secondary">
+                  {KIND_HELP[kind]}
+                </Typography>
+              </Stack>
+            ) : null}
             <TextField
               label="Title"
               value={title}
@@ -120,6 +169,40 @@ export function TestFormDialog({
               placeholder="Unit 3 Quiz"
               helperText={`${title.length}/${MAX_TITLE_CHARS}`}
             />
+            {mode === 'create' && kind === 'answer_sheet' ? (
+              <Stack direction="row" spacing={2}>
+                <FormControl fullWidth size="small">
+                  <InputLabel id="test-bubbles-label">Bubbles per question</InputLabel>
+                  <Select
+                    labelId="test-bubbles-label"
+                    label="Bubbles per question"
+                    value={bubbles}
+                    onChange={(e) => {
+                      const next = Number(e.target.value)
+                      setBubbles(next)
+                      setQuestionCount((q) => Math.min(q, answerSheetCapacity(next).capacity))
+                    }}
+                  >
+                    {Array.from({ length: MAX_BUBBLES - MIN_BUBBLES + 1 }, (_, i) => i + MIN_BUBBLES).map((n) => (
+                      <MenuItem key={n} value={n}>
+                        {n} (A to {String.fromCharCode(64 + n)})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl fullWidth size="small">
+                  <InputLabel id="test-count-label">Questions</InputLabel>
+                  <Select labelId="test-count-label" label="Questions" value={questionCount} onChange={(e) => setQuestionCount(Number(e.target.value))}>
+                    {Array.from({ length: capacity }, (_, i) => i + 1).map((n) => (
+                      <MenuItem key={n} value={n}>
+                        {n}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  <FormHelperText>Up to {capacity} fit on one page. You can change this later.</FormHelperText>
+                </FormControl>
+              </Stack>
+            ) : null}
             {mode === 'create' && !lockSection ? (
               <FormControl fullWidth size="small">
                 <InputLabel id="test-section-label">Section</InputLabel>
