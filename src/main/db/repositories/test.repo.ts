@@ -299,9 +299,27 @@ export class TestRepository {
     return this.findById(id)
   }
 
+  /**
+   * Delete the test with its questions, results, and print runs (cascades).
+   * Scanned pages keep their images but lose the link: graded and unassigned
+   * pages become "needs assignment, unknown test" so the teacher can reassign
+   * or discard them; already discarded pages just drop the reference.
+   * (scan_pages.test_id has no ON DELETE action, so this must be explicit.)
+   */
   delete(id: number): boolean {
-    const info = this.db.prepare('DELETE FROM tests WHERE id = ?').run(id)
-    return info.changes > 0
+    const run = this.db.transaction((): boolean => {
+      this.db
+        .prepare(
+          `UPDATE scan_pages SET test_id = NULL, student_id = NULL, result_id = NULL, assigned_by = NULL,
+             bucket = CASE WHEN bucket IN ('graded', 'needs_assignment') THEN 'needs_assignment' ELSE bucket END,
+             reason = CASE WHEN bucket IN ('graded', 'needs_assignment') THEN 'unknown_test' ELSE reason END
+           WHERE test_id = ?`
+        )
+        .run(id)
+      const info = this.db.prepare('DELETE FROM tests WHERE id = ?').run(id)
+      return info.changes > 0
+    })
+    return run()
   }
 }
 
