@@ -114,6 +114,26 @@ describe('ScanService', () => {
     expect(() => h.scan.getBatch(batch.id)).toThrow(AppError)
   })
 
+  it('deletes a test that has scanned pages, leaving the pages to be reassigned', async () => {
+    const batch = await h.scan.importFiles(['/nowhere/synthetic.pdf'])
+    const before = h.scan.listPages(batch.id)
+    expect(before.some((p) => p.bucket === 'graded' && p.testId === h.testId)).toBe(true)
+    h.tests.remove(h.testId)
+    expect(() => h.tests.get(h.testId)).toThrow(AppError)
+    expect(h.results.findByPair(h.testId, h.studentId)).toBeNull()
+    const after = h.scan.listPages(batch.id)
+    expect(after).toHaveLength(before.length)
+    for (const page of after) {
+      expect(page.testId).toBeNull()
+      expect(page.result).toBeNull()
+      if (['graded', 'needs_assignment'].includes(before.find((p) => p.id === page.id)?.bucket ?? '')) {
+        expect(page.bucket).toBe('needs_assignment')
+        expect(page.reason).toBe('unknown_test')
+      }
+    }
+    expect(h.scan.getBatch(batch.id).id).toBe(batch.id)
+  })
+
   it('rejects empty and unsupported imports before starting', async () => {
     await expect(h.scan.importFiles([])).rejects.toMatchObject({ code: 'VALIDATION' })
     await expect(h.scan.importFiles(['/nowhere/notes.docx'])).rejects.toMatchObject({ code: 'VALIDATION' })
